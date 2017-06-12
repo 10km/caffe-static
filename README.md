@@ -1,1 +1,1 @@
-Hello caffe-static
+depends/readme.txt
