@@ -1,0 +1,111 @@
+#!/bin/bash
+# 如果文件/文件夹存在则删除,删除失败则中止脚本
+remove_if_exist(){
+	if [ $# -eq 1 ]
+	then
+		if [ -e $1 ]
+		then
+			rm $1 -fr
+			if [ ! $? -eq 0 ]
+			then
+				exit -1
+			fi
+		fi
+		return 0
+	else 
+		# 参数错误，退出
+		echo invalid argument:
+		echo $*
+		exit -1
+	fi
+}
+# 如果文件/文件夹存在返回 0,否则返回 1
+exit_file(){
+	if [ $# -eq 1 ]
+	then
+		if [ -e $1 ]
+		then
+			return 0
+		fi
+		return 1
+	else 
+		# 参数错误，退出
+		echo invalid argument:
+		echo $*
+		exit -1
+	fi
+}
+
+# 如果文件/文件夹不存在则报错退出
+exit_if_not_exist(){
+	[ -n "$2" ] && error_msg="$2"
+	[ -z "$2" ] && error_msg="not found: $1"
+	exit_file $1 
+	exit_on_error "$error_msg"
+}
+
+# 上一条命令执行出错则中止脚本执行
+exit_on_error(){
+	if [  $? -ne 0 ]
+	then
+		if [ -n "$1" ] 
+		then	
+			echo $1 
+		else 	
+			echo "exit for error" 
+		fi
+		exit -1
+	fi
+}
+# 清除指定文件夹的内容，如果文件夹不存在则创建空文件夹
+clean_folder(){
+	if [ $# -eq 1 ]
+	then
+		if [ -d "$1" ]
+		then 
+			rm -fr $1/*
+		else 
+			mkdir -p "$1"
+		fi
+		exit_on_error
+	else 
+		# 参数错误，退出
+		echo invalid argument:
+		echo $*
+		exit -1
+	fi
+}
+# 如果文件夹不存在则创建空文件夹
+mkdir_if_not_exist(){
+	if [ $# -eq 1 ]
+	then
+		if [ ! -d "$1" ]
+		then
+			mkdir -p "$1"
+			exit_on_error
+		fi
+	else 
+		# 参数错误，退出
+		echo invalid argument:
+		echo $*
+		exit -1
+	fi
+}
+
+# 生成安装路径名后缀
+install_suffix(){
+	if [ $# -eq 1 ]
+	then
+		# -l 字母转小写
+		typeset -l os processor
+		os=`uname -s`
+		processor=`uname -p`
+		echo $1_${os}_${processor}
+	else 
+		# 参数错误，退出
+		echo invalid argument:
+		echo $*
+		exit -1
+	fi
+}
+
