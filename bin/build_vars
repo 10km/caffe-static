@@ -40,7 +40,7 @@ check_cxx_compiler(){
 }
 
 # 编译器版本限制，如果对编译器版本没有要求，则注释此行
-compiler_version_limit="5.2.0"  
+#compiler_version_limit="5.2.0"  
 # 根据优先序在指定的位置搜索编译器 并判断版本找到合适的编译器，如果没有符合条件的编译器则报错退出
 # 可以通过$BUILD_COMPILER_PATH 自定义编译器安装位置
 ! check_cxx_compiler "/usr/bin" $compiler_version_limit  && \
