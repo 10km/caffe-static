@@ -23,7 +23,7 @@ source 解压后的源码位置
 package 项目压缩包位置
 release 编译安装位置
 pactch 存放对应项目的补丁文件	
-以上名称在build_vars.sh定义，可以根据需要修改
+以上名称在 build_vars 中定义，可以根据需要修改
 	
     ├── bin
     │   ├── build_boost.sh
@@ -49,7 +49,7 @@ pactch 存放对应项目的补丁文件
     └── tools
 3.运行环境要求
 必须有安装gcc编译器(g++ &＆ gcc)
-关于编译器版本要求参见build_vars.sh中的变量compiler_version_limit定义，
+关于编译器版本要求参见 build_vars 中的变量 compiler_version_limit 定义，
 可以通过 BUILD_COMPILER_PATH 指定编译器位置(参见bin/build_vars中 BUILD_COMPILER_PATH 的定义 )
 
 

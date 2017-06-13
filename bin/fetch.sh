@@ -18,11 +18,11 @@ need_download(){
 	then
 		if [ -f $1 ]; then
 			echo "File already exists. Checking md5..."
-			os=`uname -s`
+			local os=`uname -s`
 			if [ "$os" = "Linux" ]; then
-				checksum=`md5sum $1 | awk '{ print $1 }'`
+				local checksum=`md5sum $1 | awk '{ print $1 }'`
 			elif [ "$os" = "Darwin" ]; then
-				checksum=`cat $1 | md5`
+				local checksum=`cat $1 | md5`
 			fi
 			if [ "$checksum" = "$2" ]; then
 				echo "Checksum is correct. No need to download $1."
@@ -50,7 +50,7 @@ fetch_from_github(){
 			echo "invalid argument:$1"
 			exit -1
 		fi
-		package="$folder.zip"
+		local package="$folder.zip"
 		if [ -z "$md5" ] || need_download $PACKAGE_ROOT/$package $md5
 		then
 			if [ -n "$md5" ] || [ $FORCE_DOWNLOAD_IF_EXIST -eq 1 ] 
@@ -79,8 +79,8 @@ fetch_from_github(){
 ###################################################
 fetch_boost(){
 	eval $(declare_project_local_vars $BOOST_PREFIX)
-	package="$folder.tar.gz"
-	remote_prefix="${prefix}_${version//./_}"
+	local package="$folder.tar.gz"
+	local remote_prefix="${prefix}_${version//./_}"
 	if need_download $PACKAGE_ROOT/$package $md5
 	then
 		remove_if_exist $PACKAGE_ROOT/$package
@@ -98,8 +98,8 @@ fetch_boost(){
 ######################################################
 fetch_hdf5(){
 	eval $(declare_project_local_vars $HDF5_PREFIX)
-	package="$folder.tar.gz"
-	package_prefix="CMake-$folder"
+	local package="$folder.tar.gz"
+	local package_prefix="CMake-$folder"
 	if need_download $PACKAGE_ROOT/$package $md5
 	then
 		remove_if_exist $PACKAGE_ROOT/$package
@@ -119,7 +119,7 @@ fetch_hdf5(){
 #########################################################
 fetch_opencv249(){
 	eval $(declare_project_local_vars $OPENCV_PREFIX)
-	package="$folder.zip"
+	local package="$folder.zip"
 	if need_download $PACKAGE_ROOT/$package $md5
 	then
 		remove_if_exist $PACKAGE_ROOT/$package
@@ -177,7 +177,7 @@ fetch_ssd_clone(){
 # download zip方式下载caffe-ssd源码
 fetch_ssd_zip(){
 	eval $(declare_project_local_vars SSD)
-	package="$folder.zip"
+	local package="$folder.zip"
 	if [ $FORCE_DOWNLOAD_IF_EXIST -eq 1 ] || [ ! -f $PACKAGE_ROOT/$package ]
 	then
 		remove_if_exist $PACKAGE_ROOT/$package
@@ -194,18 +194,18 @@ fetch_ssd_zip(){
 
 # 下载cmake
 fetch_cmake(){
-	folder="cmake-3.8.2-Linux-x86_64"
-	package="$folder.tar.gz"
-	if need_download $TOOLS_ROOT/$package "ab02cf61915e1ad15b8523347ad37c46"
+	eval $(declare_project_local_vars CMAKE)
+	local package="$folder.tar.gz"
+	if need_download $PACKAGE_ROOT/$package "$md5"
 	then
-		remove_if_exist $TOOLS_ROOT/$package
+		remove_if_exist $PACKAGE_ROOT/$package
 		echo "${FUNCNAME[0]}:(下载cmake)downloading $package"
 		wget --no-check-certificate https://cmake.org/files/v3.8/$package -P $TOOLS_ROOT
 		exit_on_error
 	fi
 	echo "(解压缩文件)extracting file from $PACKAGE_ROOT/$package"
 	remove_if_exist $TOOLS_ROOT/$folder
-	tar zxf$VERBOSE_EXTRACT $TOOLS_ROOT/$package -C $TOOLS_ROOT
+	tar zxf$VERBOSE_EXTRACT $PACKAGE_ROOT/$package -C $TOOLS_ROOT
 	exit_on_error
 }
 

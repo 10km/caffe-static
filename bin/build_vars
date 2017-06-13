@@ -69,7 +69,10 @@ declare -r PATCH_ROOT="$DEPENDS_ROOT/patch"
 declare -r TOOLS_ROOT="$DEPENDS_ROOT/tools"
 # 多线程编译参数 make -j 
 declare -r MAKE_JOBS=$(cat /proc/cpuinfo| grep "processor"| wc -l)
-declare -r CMAKE_ROOT=$DEPENDS_ROOT/tools/cmake-3.8.2-Linux-x86_64
+# cmake 位置定义
+CMAKE_FOLDER="cmake-3.8.2-Linux-x86_64"
+CMAKE_MD5="ab02cf61915e1ad15b8523347ad37c46"
+declare -r CMAKE_ROOT=$DEPENDS_ROOT/tools/$CMAKE_FOLDER
 declare -r CMAKE_EXE=$CMAKE_ROOT/bin/cmake
 
 define_project_folder(){
