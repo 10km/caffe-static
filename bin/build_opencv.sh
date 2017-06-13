@@ -8,16 +8,18 @@ shell_folder=$(cd "$(dirname "$0")";pwd)
 
 install_path=$OPENCV_INSTALL_PATH
 echo install_path:$install_path
-bzip2_libraries=$BZIP2_INSTALL_PATH/lib/libbz2.a
-exit_if_not_exist $bzip2_libraries "not found $bzip2_libraries,please build $BZIP2_PREFIX"
+# 如果不编译 FFMPEG 不需要 bzip2
+#bzip2_libraries=$BZIP2_INSTALL_PATH/lib/libbz2.a
+#exit_if_not_exist $bzip2_libraries "not found $bzip2_libraries,please build $BZIP2_PREFIX"
 
 pushd $SOURCE_ROOT/$OPENCV_FOLDER
 clean_folder build.gcc
 #mkdir_if_not_exist build.gcc
 pushd build.gcc
+# 如果不编译 FFMPEG , cmake时不需要指定 BZIP2_LIBRARIES
+#	-DBZIP2_LIBRARIES=$BZIP2_INSTALL_PATH/lib/libbz2.a \
 
 $CMAKE_EXE "`dirs +1`" $CMAKE_VARS_DEFINE -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX=$install_path \
-	-DBZIP2_LIBRARIES=$BZIP2_INSTALL_PATH/lib/libbz2.a \
 	-DBUILD_DOCS=off \
 	-DBUILD_SHARED_LIBS=off \
 	-DBUILD_PACKAGE=on \

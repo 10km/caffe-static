@@ -1,6 +1,7 @@
 #!/bin/bash
 # cmake 静态编译 caffe-ssd 代码脚本
 # author guyadong@gdface.net
+
 shell_folder=$(cd "$(dirname "$0")";pwd)
 . $shell_folder/build_funs
 . $shell_folder/build_vars
@@ -19,7 +20,7 @@ exit_if_not_exist $hdf5_cmake_dir "not found $hdf5_cmake_dir,please build $HDF5_
 exit_if_not_exist $BOOST_INSTALL_PATH "not found $BOOST_INSTALL_PATH,please build $BOOST_PREFIX"
 exit_if_not_exist $OPENBLAS_INSTALL_PATH "not found $OPENBLAS_INSTALL_PATH,please build $OPENBLAS_PREFIX"
 exit_if_not_exist $PROTOBUF_INSTALL_PATH "not found $PROTOBUF_INSTALL_PATH,please build $PROTOBUF_PREFIX"
-# protobuf lib 路径,
+# protobuf lib 路径
 # centos下安装路径可能是lib64
 [ -e "$PROTOBUF_INSTALL_PATH/lib" ] && protobuf_lib=$PROTOBUF_INSTALL_PATH/lib
 [ -e "$PROTOBUF_INSTALL_PATH/lib64" ] && protobuf_lib=$PROTOBUF_INSTALL_PATH/lib64
