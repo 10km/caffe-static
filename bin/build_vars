@@ -74,6 +74,7 @@ CMAKE_MD5="ab02cf61915e1ad15b8523347ad37c46"
 declare -r CMAKE_ROOT=$DEPENDS_ROOT/tools/$CMAKE_FOLDER
 declare -r CMAKE_EXE=$CMAKE_ROOT/bin/cmake
 
+# 定义 xxx_FOLDER 变量
 define_project_folder(){
 	if [ $# -eq 1 ]
 	then
@@ -119,7 +120,7 @@ declare_project_local_vars(){
 		exit -1
 	fi
 }
-##################################
+##################################项目配置信息
 PROTOBUF_PREFIX="protobuf"
 PROTOBUF_VERSION="3.3.1"
 PROTOBUF_MD5="9377e414994fa6165ecb58a41cca3b40"
