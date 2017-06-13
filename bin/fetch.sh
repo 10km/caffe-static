@@ -39,7 +39,9 @@ need_download(){
 		exit -1
 	fi
 }
-# 从github上下载源码,如果本地不存在指定的zip包，或md5校验码不匹配则从github下载
+# 从github上下载源码
+# 如果本地不存在指定的zip包，或$md5为空或$md5校验码不匹配则从github下载
+# 如果本地存在指定的zip包，且$md5为空,则根据$FORCE_DOWNLOAD_IF_EXIST决定是否跳过下载直接解压
 # $1 项目名称
 fetch_from_github(){
 	if [ $# -eq 1 ]
