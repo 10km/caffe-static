@@ -200,8 +200,8 @@ fetch_cmake(){
 	then
 		remove_if_exist $PACKAGE_ROOT/$package
 		echo "${FUNCNAME[0]}:(下载cmake)downloading $package"
-		wget --no-check-certificate https://cmake.org/files/v3.8/$package -P $TOOLS_ROOT
-		exit_on_error
+		wget --no-check-certificate https://cmake.org/files/v3.8/$package -P $PACKAGE_ROOT
+		exit_on_error 
 	fi
 	echo "(解压缩文件)extracting file from $PACKAGE_ROOT/$package"
 	remove_if_exist $TOOLS_ROOT/$folder
@@ -223,7 +223,7 @@ modify_ssd(){
 	echo "${FUNCNAME[0]}:(复制修改的补丁文件)copy patch file to $SOURCE_ROOT/$folder"	
 	pushd $SOURCE_ROOT/$folder
 	cp -Pr$VERBOSE_EXTRACT $PATCH_ROOT/$folder/* .
-	exit_on_error "error location:${FUNCNAME[0]}"
+	exit_on_error 
 	popd
 }
 
@@ -300,6 +300,11 @@ do
 		exit -1
 	fi
 done
+
+# 创建 package,source,tools 根目录
+mkdir_if_not_exist $PACKAGE_ROOT
+mkdir_if_not_exist $SOURCE_ROOT
+mkdir_if_not_exist $TOOLS_ROOT
 
 # 顺序下载解压 $fetch_projects中指定的项目
 for prj in $fetch_projects

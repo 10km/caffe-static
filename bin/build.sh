@@ -2,9 +2,6 @@
 shell_folder=$(cd "$(dirname "$0")";pwd)
 . $shell_folder/build_funs
 . $shell_folder/build_vars
-mkdir_if_not_exist $PACKAGE_ROOT
-mkdir_if_not_exist $SOURCE_ROOT
-mkdir_if_not_exist $TOOLS_ROOT
 
 pushd $shell_folder
 ./fetch.sh;exit_on_error

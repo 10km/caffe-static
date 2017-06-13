@@ -55,7 +55,6 @@ echo MAKE_C_COMPILER:$MAKE_C_COMPILER
 # cmake 参数定义
 declare -r CMAKE_VARS_DEFINE="-DCMAKE_CXX_COMPILER:FILEPATH=$MAKE_CXX_COMPILER -DCMAKE_C_COMPILER:FILEPATH=$MAKE_C_COMPILER -DCMAKE_BUILD_TYPE:STRING=RELEASE"
 # 脚本所在路径
-#DEPENDS_ROOT=$(dirname $(readlink -f $0))/..
 declare -r DEPENDS_ROOT=$(cd $(dirname $(readlink -f $0))/..;pwd)
 # 安装根目录
 declare -r INSTALL_PREFIX_ROOT="$DEPENDS_ROOT/release"

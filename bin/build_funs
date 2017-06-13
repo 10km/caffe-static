@@ -44,19 +44,28 @@ exit_if_not_exist(){
 	exit_on_error "$error_msg"
 }
 
+# 输入函数调用层次
+call_stack(){
+	local funs="${FUNCNAME[*]}"
+	# 第一个空格替换为‘(调用堆栈):’
+	funs="${funs/ /(调用堆栈):}"
+	# 后续所有空格替换为‘<-’
+	echo "${funs// / <- }"
+}
+
 # 上一条命令执行出错则中止脚本执行
 exit_on_error(){
 	if [  $? -ne 0 ]
 	then
-		if [ -n "$1" ] 
-		then	
-			echo $1 
-		else 	
-			echo "exit for error" 
-		fi
+		echo "exit for error:$1 " 
+		local c="$(call_stack)"
+		# 从调用堆栈中删除当前函数名(即exit_on_error)
+		c="${c/${FUNCNAME[0]}/}"
+		echo "${c/<-/}"
 		exit -1
 	fi
 }
+
 # 清除指定文件夹的内容，如果文件夹不存在则创建空文件夹
 clean_folder(){
 	if [ $# -eq 1 ]
