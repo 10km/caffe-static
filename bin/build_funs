@@ -44,7 +44,7 @@ exit_if_not_exist(){
 	exit_on_error "$error_msg"
 }
 
-# 输入函数调用层次
+# 输出函数调用层次
 call_stack(){
 	local funs="${FUNCNAME[*]}"
 	# 第一个空格替换为‘(调用堆栈):’
