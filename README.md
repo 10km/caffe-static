@@ -1,4 +1,4 @@
-# author guyadong@gdface.net 2017/6
+author: guyadong@gdface.net 2017/6
 #0.who am i?
 
 在caffe应用到工程实现时，为了方便系统安装，需要尽可能减少软件的依赖库。
