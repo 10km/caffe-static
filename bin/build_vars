@@ -58,6 +58,8 @@ declare -r CMAKE_VARS_DEFINE="-DCMAKE_CXX_COMPILER:FILEPATH=$MAKE_CXX_COMPILER -
 declare -r DEPENDS_ROOT=$(cd $(dirname $(readlink -f $0))/..;pwd)
 # 安装根目录
 declare -r INSTALL_PREFIX_ROOT="$DEPENDS_ROOT/release"
+# 脚本根目录
+declare -r BIN_ROOT="$DEPENDS_ROOT/bin"
 # 源码根目录
 declare -r SOURCE_ROOT="$DEPENDS_ROOT/source"
 # 压缩包根目录
