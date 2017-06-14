@@ -21,6 +21,7 @@ exit_on_error
 
 remove_if_exist $install_path
 make -j $MAKE_JOBS install
+exit_on_error
 popd
 rm -fr build.gcc
 popd
