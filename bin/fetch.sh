@@ -136,9 +136,13 @@ fetch_opencv249(){
 }
 
 ######################################################
-fetch_bzip2(){
-	eval $(declare_project_local_vars $BZIP2_PREFIX)
-	package="$folder.tar.gz"
+# bzip2官网下载 1.0.6版本
+fetch_bzip2_1_0_6(){
+#	eval $(declare_project_local_vars $BZIP2_PREFIX)
+	local version="1.0.6"
+	local folder=$BZIP2_PREFIX-$version
+	local package="$folder.tar.gz"
+	local md5=$BZIP2_TAR_GZ_MD5_1_0_6
 	if need_download $PACKAGE_ROOT/$package $md5
 	then
 		echo "${FUNCNAME[0]}:(下载源码)downloading bzip2 $version source"
@@ -160,7 +164,11 @@ fetch_bzip2(){
 		echo "${FUNCNAME[0]}:found -fPIC in CFLAGS,no need modify $bzip2_makefile"
 	fi
 }
-
+# 从github下载 1.0.5版本(支持cmake编译)
+fetch_bzip2_1_0_5(){ 
+	fetch_from_github "$BZIP2_PREFIX" ; 
+	modify_bzip2_1_0_5
+}
 ######################################################
 # git clone方式下载caffe-ssd源码
 fetch_ssd_clone(){
@@ -215,7 +223,7 @@ fetch_cmake(){
 modify_snappy(){
 	eval $(declare_project_local_vars $SNAPPY_PREFIX)
 	local snappy_cmake=$SOURCE_ROOT/$folder/CMakeLists.txt
-	echo "${FUNCNAME[0]}:修改$snappy_cmake,去掉SHARED参数 "
+	echo "${FUNCNAME[0]}:修改$snappy_cmake,删除 SHARED 参数"
 	sed -i -r 's/(^\s*ADD_LIBRARY\s*\(\s*snappy\s*)SHARED/#modified by guyadong,remove SHARED\n\1/g' $snappy_cmake
 	exit_on_error
 }
@@ -228,6 +236,18 @@ modify_ssd(){
 	exit_on_error 
 	popd
 }
+# 修改bzip2 1.0.5代码
+modify_bzip2_1_0_5(){
+	eval $(declare_project_local_vars $BZIP2_PREFIX)
+	local bzip2_c=$SOURCE_ROOT/$folder/bzip2.c
+	# 修改 bzip2.c,将#include语句的路径分隔符改为unix格式'/' 
+	echo "${FUNCNAME[0]}:修改'#include <sys\stat.h>'为'#include <sys/stat.h>' in $bzip2_c"
+	sed -i -r 's:^\s*#\s*include\s*<sys\\stat.h>\s*$:// modified by guyadong for cross compiling with MinGW \n#   include <sys/stat.h>:g'  $bzip2_c
+	exit_on_error
+	local bzip2_cmake=$SOURCE_ROOT/$folder/CMakeLists.txt
+	echo "${FUNCNAME[0]}:修改$bzip2_cmake,删除 SHARED 参数"
+	sed -i -r 's/(^\s*ADD_LIBRARY\s*\(\s*bz2\s*)SHARED/#modified by guyadong,remove SHARED\n\1/g' $bzip2_cmake
+}
 
 fetch_protobuf(){ fetch_from_github "protobuf" ; }
 fetch_gflags(){ fetch_from_github "gflags" ; }
@@ -238,6 +258,8 @@ fetch_snappy(){ fetch_from_github "snappy" ; modify_snappy ; }
 fetch_openblas(){ fetch_from_github "OpenBLAS" ; }
 fetch_ssd(){ fetch_ssd_zip ; modify_ssd; }
 fetch_opencv(){ fetch_from_github "opencv" ; }
+fetch_bzip2(){ fetch_bzip2_1_0_5 ; }
+
 # 输出帮助信息
 print_help(){
 	cat <<EOF
@@ -313,4 +335,3 @@ for prj in $fetch_projects
 do
 	fetch_$prj
 done
-
