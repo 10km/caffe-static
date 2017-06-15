@@ -1,1 +1,1 @@
-$wget="$TOOLS_ROOT/wget/wget.exe"
+$WGET="$TOOLS_ROOT/wget/wget.exe"

@@ -89,23 +89,7 @@ function mkdir_if_not_exist([string]$folder){
 		exit_on_error
 	}
 }
-# 生成安装路径名后缀
-function install_suffix([string]$prefix){
-    args_not_null_empty_undefined prefix
-    try { 
-        # 先尝试执行linux命令判断操作系统,产生异常时执行windows下指令
-		$os=$(uname -s)
-		$processor=$(uname -p)
-    } catch { 
-        $os="windows"
-	    $arch=$env:PROCESSOR_ARCHITECTURE
-        $processor="x86"
-        if($arch -eq "AMD64"){
-             $processor += "_64"
-        }	    
-    } 
-   return "${prefix}_${os}_${processor}"
-}
+
 # 计算文件md5校验值
 function md5sum([string]$file){
     exit_if_not_exist -file $file -type Leaf
