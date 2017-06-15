@@ -20,7 +20,7 @@ remove_if_exist(){
 	fi
 }
 # 如果文件/文件夹存在返回 0,否则返回 1
-exit_file(){
+exist_file(){
 	if [ $# -eq 1 ]
 	then
 		if [ -e $1 ]
@@ -40,7 +40,7 @@ exit_file(){
 exit_if_not_exist(){
 	[ -n "$2" ] && error_msg="$2"
 	[ -z "$2" ] && error_msg="not found: $1"
-	exit_file $1 
+	exist_file $1 
 	exit_on_error "$error_msg"
 }
 
