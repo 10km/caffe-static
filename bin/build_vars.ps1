@@ -1,13 +1,12 @@
-Ôªø#!/bin/bash
 . "./build_funs.ps1"
-# Ëé∑ÂèñCPUÈÄªËæëÊ†∏ÂøÉÊÄªÊï∞
+# ªÒ»°CPU¬ﬂº≠∫À–ƒ◊‹ ˝
 function get_logic_core_count(){
     $cpu=get-wmiobject win32_processor
     return @($cpu).count*$cpu.NumberOfLogicalProcessors
 }
 function get_os_processor(){
     try { 
-        # ÂÖàÂ∞ùËØïÊâßË°ålinuxÂëΩ‰ª§Âà§Êñ≠Êìç‰ΩúÁ≥ªÁªü,‰∫ßÁîüÂºÇÂ∏∏Êó∂ÊâßË°åwindows‰∏ãÊåá‰ª§
+        # œ»≥¢ ‘÷¥––linux√¸¡Ó≈–∂œ≤Ÿ◊˜œµÕ≥,≤˙…˙“Ï≥£ ±÷¥––windowsœ¬÷∏¡Ó
 		$os=$(uname -s)
 		$processor=$(uname -p)
     } catch { 
@@ -21,147 +20,190 @@ function get_os_processor(){
     $os
     $processor
 }
-# ÂÆö‰πâ xxx_FOLDER ÂèòÈáè
-function define_project_folder([string]$prefix){
-    args_not_null_empty_undefined prefix    
-	$prefix=$prefix.ToUpper()
-    $v1=$(gv -Name "${prefix}_PREFIX" -Scope "script").Value
-    $v2=$(gv -Name "${prefix}_VERSION" -Scope "script").Value
-    New-Variable -Name "${prefix}_FOLDER" -Value "${v1}_${v2}" -Scope "script" -Force 
-}
-# ÁîüÊàêÂÆâË£ÖË∑ØÂæÑÂêçÂêéÁºÄ
+# …˙≥…∞≤◊∞¬∑æ∂√˚∫Û◊∫
 function install_suffix([string]$prefix){
-   args_not_null_empty_undefined prefix
-   return "${prefix}_${global:HOST_OS}_${global:HOST_PROCESSOR}"
+	args_not_null_empty_undefined prefix HOST_OS HOST_PROCESSOR
+	return "${prefix}_${HOST_OS}_${HOST_PROCESSOR}"
 }
-# ÊåáÂÆöÁºñËØëÂô®
-echo ÁºñËØëÂô®‰ΩçÁΩÆÔºö
+# ∏˘æ›π˛œ£±ÌÃ·π©µƒ–≈œ¢¥¥Ω®project info∂‘œÛ
+function create_project_info([hashtable]$hash){
+	args_not_null_empty_undefined hash INSTALL_PREFIX_ROOT
+    $info= New-Object PSObject  -Property $hash
+    # √ª”–∂®“Â prefix µƒ≤ª∂®“Âinstall_path
+    if($info.prefix){
+	    Add-Member -InputObject $info -NotePropertyName install_path -NotePropertyValue $(Join-Path -ChildPath $(install_suffix $info.prefix) -Path $INSTALL_PREFIX_ROOT) 
+    }
+    $f=$info.prefix
+    # »Áπ˚√ª”–∂®“Â∞Ê±æ∫≈£¨‘Úfolder”Îprefixœ‡Õ¨
+    if($info.version){
+       $f+="-"+$info.version
+    }
+	if(! $info.folder){
+		Add-Member -InputObject $info -NotePropertyName folder -NotePropertyValue $f
+	}
+    return $info
+}
+
+# ÷∏∂®±‡“Î∆˜
+echo ±‡“Î∆˜Œª÷√£∫
 echo MAKE_CXX_COMPILER:$MAKE_CXX_COMPILER
 echo MAKE_C_COMPILER:$MAKE_C_COMPILER
-# Êìç‰ΩúÁ≥ªÁªü,CPUÁ±ªÂûã
+# ≤Ÿ◊˜œµÕ≥,CPU¿‡–Õ
 $HOST_OS,$HOST_PROCESSOR=get_os_processor
-echo HOST_OS=$HOST_OS,HOST_OS=$HOST_PROCESSOR
+echo HOST_OS=$HOST_OS
+echo HOST_OS=$HOST_PROCESSOR
 
-# cmake ÂèÇÊï∞ÂÆö‰πâ
+# cmake ≤Œ ˝∂®“Â
 $CMAKE_VARS_DEFINE="-DCMAKE_CXX_COMPILER:FILEPATH=$MAKE_CXX_COMPILER -DCMAKE_C_COMPILER:FILEPATH=$MAKE_C_COMPILER -DCMAKE_BUILD_TYPE:STRING=RELEASE"
-# ËÑöÊú¨ÊâÄÂú®Ë∑ØÂæÑ
+# Ω≈±æÀ˘‘⁄¬∑æ∂
 $BIN_ROOT=$(Get-Item $MyInvocation.MyCommand.Definition).Directory
-# È°πÁõÆÊ†πÁõÆÂΩï
+# œÓƒø∏˘ƒø¬º
 $DEPENDS_ROOT=$BIN_ROOT.Parent.FullName
-# ÂÆâË£ÖÊ†πÁõÆÂΩï
-$INSTALL_PREFIX_ROOT="$DEPENDS_ROOT/release"
-# Ê∫êÁ†ÅÊ†πÁõÆÂΩï
-$SOURCE_ROOT="$DEPENDS_ROOT/source"
-# ÂéãÁº©ÂåÖÊ†πÁõÆÂΩï
-$PACKAGE_ROOT="$DEPENDS_ROOT/package"
-# Ë°•‰∏ÅÊñá‰ª∂Ê†πÁõÆÂΩï
-$PATCH_ROOT="$DEPENDS_ROOT/patch"
-# Â∑•ÂÖ∑ËΩØ‰ª∂Ê†πÊçÆÁõÆÂΩï
-$TOOLS_ROOT="$DEPENDS_ROOT/tools"
+# ∞≤◊∞∏˘ƒø¬º
+$INSTALL_PREFIX_ROOT=Join-Path -ChildPath release -Path $DEPENDS_ROOT
+# ‘¥¬Î∏˘ƒø¬º
+$SOURCE_ROOT=Join-Path -ChildPath source -Path $DEPENDS_ROOT
+# —πÀı∞¸∏˘ƒø¬º
+$PACKAGE_ROOT=Join-Path -ChildPath package -Path $DEPENDS_ROOT 
+# ≤π∂°Œƒº˛∏˘ƒø¬º
+$PATCH_ROOT=Join-Path -ChildPath patch -Path $DEPENDS_ROOT 
+# π§æﬂ»Ìº˛∏˘æ›ƒø¬º
+$TOOLS_ROOT=Join-Path -ChildPath tools -Path $DEPENDS_ROOT 
 
-# Â§öÁ∫øÁ®ãÁºñËØëÂèÇÊï∞ make -j 
+# ∂‡œﬂ≥Ã±‡“Î≤Œ ˝ make -j 
 $MAKE_JOBS=get_logic_core_count
-# cmake ‰ΩçÁΩÆÂÆö‰πâ
-$CMAKE_FOLDER="cmake-3.8.2-Linux-x86_64"
-$CMAKE_MD5="ab02cf61915e1ad15b8523347ad37c46"
-$CMAKE_ROOT="$DEPENDS_ROOT/tools/$CMAKE_FOLDER"
-$CMAKE_EXE="$CMAKE_ROOT/bin/cmake"
+##################################œÓƒø≈‰÷√–≈œ¢
+$protobuf_hash=@{
+	prefix="protobuf"
+	version="3.3.1"
+	md5="9377e414994fa6165ecb58a41cca3b40"
+	owner="google"
+	package_prefix="v"
+}
+$PROTOBUF_INFO= create_project_info $protobuf_hash
+#$PROTOBUF_INFO
 
-##################################È°πÁõÆÈÖçÁΩÆ‰ø°ÊÅØ
-$PROTOBUF_PREFIX="protobuf"
-$PROTOBUF_VERSION="3.3.1"
-$PROTOBUF_MD5="9377e414994fa6165ecb58a41cca3b40"
-$PROTOBUF_OWNER="google"
-$PROTOBUF_PACKAGE_PREFIX="v"
-$PROTOBUF_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $PROTOBUF_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $PROTOBUF_PREFIX
+$glog_hash=@{
+	prefix="glog"
+	version="0.3.5"
+	md5="454766d0124951091c95bad33dafeacd"
+	owner="google"
+	package_prefix="v"
+}
+$GLOG_INFO= create_project_info $glog_hash
+#$GLOG_INFO
 
-$GLOG_PREFIX="glog"
-$GLOG_VERSION="0.3.5"
-$GLOG_MD5="454766d0124951091c95bad33dafeacd"
-$GLOG_OWNER="google"
-$GLOG_PACKAGE_PREFIX="v"
-$GLOG_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $GLOG_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $GLOG_PREFIX
+$gflags_hash=@{
+	prefix="gflags"
+	version="2.2.0"
+	md5="f3d31a4225a7e0e6cac50b2b65525317"
+	version_2_1_2="2.1.2"
+	md5_2_1_2="5cb0a1b38740ed596edb7f86cd5b3bd8"
+	owner="gflags"
+	package_prefix="v"
+}
+$GFLAGS_INFO= create_project_info $gflags_hash
+#$GFLAGS_INFO
 
-$GFLAGS_PREFIX="gflags"
-$GFLAGS_VERSION="2.2.0"
-$GFLAGS_MD5="f3d31a4225a7e0e6cac50b2b65525317"
-#GFLAGS_VERSION="2.1.2"
-#GFLAGS_MD5_2_1_2="5cb0a1b38740ed596edb7f86cd5b3bd8"
-$GFLAGS_OWNER="gflags"
-$GFLAGS_PACKAGE_PREFIX="v"
-$GFLAGS_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $GFLAGS_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $GFLAGS_PREFIX
+$leveldb_hash=@{
+	prefix="leveldb"
+	version="1.18"
+	md5="06e9f4984e40ccf27af366d5bec0580a"
+	owner="google"
+	package_prefix="v"
+}
+$LEVELDB_INFO= create_project_info $leveldb_hash
+#$LEVELDB_INFO
 
-$LEVELDB_PREFIX="leveldb"
-$LEVELDB_VERSION="1.18"
-$LEVELDB_MD5="06e9f4984e40ccf27af366d5bec0580a"
-$LEVELDB_OWNER="google"
-$LEVELDB_PACKAGE_PREFIX="v"
-$LEVELDB_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $LEVELDB_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $LEVELDB_PREFIX
+$snappy_hash=@{
+	prefix="snappy"
+	version_1_1_4="1.1.4"
+	md5_1_1_4="b9bdbb6818d9c66b31edb6c037fef3d0"
+	version="master"
+	owner="google"
+	package_prefix=""
+}
+$SNAPPY_INFO= create_project_info $snappy_hash
+#$SNAPPY_INFO
 
-$SNAPPY_PREFIX="snappy"
-#SNAPPY_VERSION="1.1.4"
-#SNAPPY_MD5="b9bdbb6818d9c66b31edb6c037fef3d0"
-$SNAPPY_VERSION="master"
-$SNAPPY_MD5=""
-$SNAPPY_OWNER="google"
-$SNAPPY_PACKAGE_PREFIX=""
-$SNAPPY_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $SNAPPY_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $SNAPPY_PREFIX
+$openblas_hash=@{
+	prefix="OpenBLAS"
+	version="0.2.18"
+	md5="4ca49eb1c45b3ca82a0034ed3cc2cef1"
+	owner="xianyi"
+	package_prefix="v"
+}
+$OPENBLAS_INFO= create_project_info $openblas_hash
+#$OPENBLAS_INFO
 
-$OPENBLAS_PREFIX="OpenBLAS"
-$OPENBLAS_VERSION="0.2.18"
-$OPENBLAS_MD5="4ca49eb1c45b3ca82a0034ed3cc2cef1"
-$OPENBLAS_OWNER="xianyi"
-$OPENBLAS_PACKAGE_PREFIX="v"
-$OPENBLAS_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $OPENBLAS_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $OPENBLAS_PREFIX
+$lmdb_hash=@{
+	prefix="lmdb"
+	version="0.9.21"
+	md5="a47ddf0fade922e8335226726be5e6c4"
+	owner="LMDB"
+	package_prefix="LMDB_"
+}
+$LMDB_INFO= create_project_info $lmdb_hash
+#$LMDB_INFO
 
-$LMDB_PREFIX="lmdb"
-$LMDB_VERSION="0.9.21"
-$LMDB_MD5="a47ddf0fade922e8335226726be5e6c4"
-$LMDB_OWNER="LMDB"
-$LMDB_PACKAGE_PREFIX="LMDB_"
-$LMDB_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $LMDB_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $LMDB_PREFIX
 
-$BZIP2_PREFIX="bzip2"
-$BZIP2_VERSION="1.0.5"
-# 1.0.5 zip ÂåÖmd5Ê†°È™åÁ†Å(github‰∏ãËΩΩ)
-$BZIP2_MD5="052fec5cdcf9ae26026c3e85cea5f573"
-# 1.0.6 tar.gzÂåÖmd5Ê†°È™åÁ†Å(ÂÆòÁΩë bzip2.org ‰∏ãËΩΩ)
-$BZIP2_TAR_GZ_MD5_1_0_6="00b516f4704d4a7cb50a1d97e6e8e15b"
-$BZIP2_OWNER="LuaDist"
-$BZIP2_PACKAGE_PREFIX=""
-$BZIP2_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $BZIP2_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $BZIP2_PREFIX
+$bzip2_hash=@{
+	prefix="bzip2"
+	version="1.0.5"
+	# 1.0.5 zip ∞¸md5–£—È¬Î(githubœ¬‘ÿ)
+	MD5="052fec5cdcf9ae26026c3e85cea5f573"
+	# 1.0.6 tar.gz∞¸md5–£—È¬Î(πŸÕ¯ bzip2.org œ¬‘ÿ)
+	tar_gz_md5_1_0_6="00b516f4704d4a7cb50a1d97e6e8e15b"
+	owner="LuaDist"
+	package_prefix=""
+}
+$BZIP2_INFO= create_project_info $bzip2_hash
+#$BZIP2_INFO
 
-$BOOST_PREFIX="boost"
-$BOOST_VERSION="1.58.0"
-$BOOST_MD5="5a5d5614d9a07672e1ab2a250b5defc5"
-$BOOST_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $BOOST_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $BOOST_PREFIX
+$boost_hash=@{
+	prefix="boost"
+	version="1.58.0"
+	md5="5a5d5614d9a07672e1ab2a250b5defc5"
+}
+$BOOST_INFO= create_project_info $boost_hash
+#$BOOST_INFO
 
-$HDF5_PREFIX="hdf5"
-$HDF5_VERSION="1.8.16"
-$HDF5_MD5="a7559a329dfe74e2dac7d5e2d224b1c2"
-$HDF5_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $HDF5_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $HDF5_PREFIX
+$hdf5_hash=@{
+	prefix="hdf5"
+	version="1.8.16"
+	md5="a7559a329dfe74e2dac7d5e2d224b1c2"
+}
+$HDF5_INFO= create_project_info $hdf5_hash
+#$HDF5_INFO
 
-$OPENCV_PREFIX="opencv"
-#OPENCV_VERSION="2.4.9"
-#OPENCV_MD5="7f958389e71c77abdf5efe1da988b80c"
-$OPENCV_VERSION="2.4.13.2"
-$OPENCV_MD5="e48803864e77fc8ae7114be4de732d80"
-$OPENCV_OWNER="opencv"
-$OPENCV_PACKAGE_PREFIX=""
-$OPENCV_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $OPENCV_PREFIX) -Path $INSTALL_PREFIX_ROOT)
-define_project_folder $OPENCV_PREFIX
+$opencv_hash=@{
+	prefix="opencv"
+	version_2_4_9="2.4.9"
+	md5_2_4_9="7f958389e71c77abdf5efe1da988b80c"
+	version="2.4.13.2"
+	md5="e48803864e77fc8ae7114be4de732d80"
+	owner="opencv"
+	package_prefix=""
+}
+$OPENCV_INFO= create_project_info $opencv_hash
+#$OPENCV_INFO
 
-$SSD_PREFIX="caffe-ssd"
-$SSD_FOLDER="caffe-ssd"
-$SSD_INSTALL_PATH=$(Join-Path -ChildPath $(install_suffix $OPENCV_PREFIX) -Path $SSD_PREFIX)
+$ssd_hash=@{
+	prefix="caffe-ssd"	
+}
+$SSD_INFO= create_project_info $ssd_hash
+#$SSD_INFO
+
+$cmake_hash=@{
+	md5="ab02cf61915e1ad15b8523347ad37c46"
+	folder="cmake-3.8.2-Linux-x86_64"
+}
+$CMAKE_INFO= create_project_info $cmake_hash
+# ÃÌº”root Ù–‘
+Add-Member -InputObject $CMAKE_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $CMAKE_INFO.folder -Path $TOOLS_ROOT )
+# ÃÌº”exe Ù–‘
+Add-Member -InputObject $CMAKE_INFO -NotePropertyName exe -NotePropertyValue ([io.path]::combine($CMAKE_INFO.root,"bin","cmake"))
+#$CMAKE_INFO
+# wget.exeŒª÷√
+$WGET=[io.path]::combine($TOOLS_ROOT,"wget","wget")
 

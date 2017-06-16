@@ -1,6 +1,6 @@
 # debug开关
-$DebugPreference = "continue"
-
+#$DebugPreference = 'continue'
+$DebugPreference = 'SilentlyContinue'
 #set-executionpolicy remotesigned 
 # 输出函数调用堆栈
 # $index 从堆栈数组的第几个元素开始输出，默认为1,即不输出当前函数(call_stack)
@@ -18,7 +18,7 @@ function args_not_null_empty_undefined(){
         # 判断名为$name的变量是否定义
         if( ! (Test-Path variable:$name) ){
             echo "undefined variable: '$name'"
-            call_stack
+            call_stack 3
             exit -1
         }
         # 获取名为 $name 的变量的值
@@ -26,7 +26,7 @@ function args_not_null_empty_undefined(){
         Write-Debug "name:$name, value:$value"
         if([string]::IsNullOrEmpty( $value)){
             echo "the argument name '$name' must not be null or empty"
-            call_stack
+            call_stack 3
             exit -1
         }           
     }
@@ -96,7 +96,7 @@ function md5sum([string]$file){
     exit_if_not_exist -file $file -type Leaf
     return $(Get-FileHash $file -Algorithm MD5).Hash.ToLower()
 }
-function unzip_file([string]$zipFile,[string]$targetFolder)
+function unzip([string]$zipFile,[string]$targetFolder)
 {
     exit_if_not_exist $zipFile -type Leaf
     # 检查是否为zip后缀
@@ -106,12 +106,11 @@ function unzip_file([string]$zipFile,[string]$targetFolder)
         exit -1
     }
     # targetFolder为空时解压到zipFile同级文件夹的同名文件夹
-    if($targetFolder.Length -eq 0){
-        $src=$(Get-Item $zipFile)         
-        $targetFolder=$(Join-Path -ChildPath $src.BaseName -Path $src.DirectoryName)
+    if(! $targetFolder){
+        $targetFolder=(Get-Item $zipFile).Directory
     }    
     #确保目标文件夹必须存在,目标文件夹存在 则清空文件夹
-    clean_folder -folder $targetFolder
+    #clean_folder -folder $targetFolder
     $shellApp = New-Object -ComObject Shell.Application
     $files = $shellApp.NameSpace($zipFile).Items()
 	echo "unzip to $targetFolder..."
