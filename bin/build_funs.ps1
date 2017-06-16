@@ -15,13 +15,14 @@ function call_stack([int]$index=1){
 function args_not_null_empty_undefined(){
     echo $args| foreach {
         $name=$($_)
-        $varObj=(Get-Variable $name -ErrorAction SilentlyContinue)
-        if( $varObj -eq $null){            
+        # 判断名为$name的变量是否定义
+        if( ! (Test-Path variable:$name) ){
             echo "undefined variable: '$name'"
             call_stack
             exit -1
         }
-        $value=$varObj.Value
+        # 获取名为 $name 的变量的值
+        $value=(Get-Variable $name).Value
         Write-Debug "name:$name, value:$value"
         if([string]::IsNullOrEmpty( $value)){
             echo "the argument name '$name' must not be null or empty"
