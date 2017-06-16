@@ -24,6 +24,7 @@ need_download(){
 			elif [ "$os" = "Darwin" ]; then
 				local checksum=`cat $1 | md5`
 			fi
+			exit_on_error
 			if [ "$checksum" = "$2" ]; then
 				echo "Checksum is correct. No need to download $1."
 				return 1
