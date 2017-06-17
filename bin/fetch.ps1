@@ -47,55 +47,28 @@ function need_download([string]$file,[string]$md5){
 		return $true
 	}
 }
-
-# 从github上下载源码
-# 如果本地不存在指定的zip包，或$md5为空或$md5校验码不匹配则从github下载
-# 如果本地存在指定的zip包，且$md5为空,则根据$FORCE_DOWNLOAD_IF_EXIST决定是否跳过下载直接解压
-# $project 项目名称(不区分大小写)
-function fetch_from_github([string]$project){
-	args_not_null_empty_undefined project
-	$name=$project.ToUpper()+"_INFO"	
-	$info=(Get-Variable -Name $name).Value
-	# $project类型必须是
-	if(!($info -is [PSObject])){
-		echo 'invalid argument: $project must be [PSObject]'
-		call_stack
-		exit -1
-	}
-	$package=$info.folder+".zip"
-	$package_path=Join-Path $PACKAGE_ROOT $package
-	$source_path=Join-Path $SOURCE_ROOT $info.folder
-	if( (need_download $package_path $info.md5)[-1] ){	
-		Write-Host "(下载源码)downloading" $info.prefix $info.version source
-		remove_if_exist $package_path
-        $url='https://github.com',$info.owner,$info.prefix,'archive',($info.package_prefix+$info.version+'.zip') -join '/'        
-        Invoke-WebRequest -Uri $url -OutFile $package_path 
-   		#&$WGET $url -O $package_path
-		exit_on_error
-	}
-	remove_if_exist $source_path
-	echo "(解压缩文件)extracting file from $package_path"
-	unzip $package_path -targetFolder $SOURCE_ROOT	
-	exit_on_error
-	$remot_name=$info.prefix+'-'+$info.package_prefix+$info.version
-	$unpack_folder=Join-Path $SOURCE_ROOT $remot_name
-	if( $info.package_prefix -and (Test-Path $unpack_folder -PathType Container)){
-		Write-Host rename $remot_name to $info.folder
-        pushd $SOURCE_ROOT
-        Rename-Item -Path $remot_name -NewName $info.folder
-        exit_on_error
-        popd		
-	}
-}
 # 下载并解压指定的项目文件
-function download_and_extract([string]$project,[string]$url,[string]$targetRoot=$SOURCE_ROOT,[string]$sourceRoot=$PACKAGE_ROOT){
-	args_not_null_empty_undefined project url
-    $name=($project.ToUpper()+"_INFO")
-    args_not_null_empty_undefined $name
-	$info=(Get-Variable -Name $name).Value
-    if ( !( $info -is [PSObject]) ){
-        echo "type of $name :must be [PSObject] "
-        exit -1
+function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$SOURCE_ROOT,[string]$sourceRoot=$PACKAGE_ROOT,[string]$md5Name,[string]$versionName){
+	args_not_null_empty_undefined info uri
+    if($md5Name){
+        $md5=$info."$md5Name"
+        if(! $md5){
+            echo "undefined member property '$md5Name'"
+            call_stack
+            exit -1
+        }        
+    }else{
+        $md5=$info.md5
+    }
+    if($versionName){
+        $version=$info."$versionName"
+        if(! $version){
+            echo "undefined member property '$versionName'"
+            call_stack
+            exit -1
+        }        
+    }else{
+        $version=$info.version
     }
     if($info.package_suffix){
 	    $package=$info.folder + $info.package_suffix
@@ -103,50 +76,95 @@ function download_and_extract([string]$project,[string]$url,[string]$targetRoot=
         $package=$info.folder + ".zip"
     }
 	$package_path=Join-Path $sourceRoot $package
-	if( (need_download $package_path $info.md5)[-1] ){	
+	if( (need_download $package_path $md5)[-1] ){	
 		remove_if_exist $package_path
-		Write-Host "(下载源码)downloading" $info.prefix $info.version source
-		Invoke-WebRequest -Uri $url -OutFile $package_path 
+		Write-Host "(下载)downloading" $info.prefix $version 
+        # 设置为Tls12 解决报错：
+        # Invoke-WebRequest : 请求被中止: 未能创建 SSL/TLS 安全通道。
+        # 参见 https://stackoverflow.com/questions/41618766/powershell-invoke-webrequest-fails-with-ssl-tls-secure-channel
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+		Invoke-WebRequest -Uri $uri -OutFile $package_path 
 		exit_on_error
 	}
 	remove_if_exist (Join-Path $targetRoot $info.folder)
-	echo "(解压缩文件)extracting file from $package_path"
+	echo "(解压缩)extracting file from $package_path"
 	unpack $package_path -targetFolder $targetRoot	
 }
-###################################################
-function fetch_boost(){
-
-	$package=$BOOST_INFO.folder + ".tar.gz"
-	$remote_prefix=$BOOST_INFO.prefix+'_'+$BOOST_INFO.version.Replace('.','_')
-	$package_path=Join-Path $PACKAGE_ROOT $package
-	$source_path=Join-Path $SOURCE_ROOT $info.folder
-	if( (need_download $package_path $info.md5)[-1] ){	
-		remove_if_exist $package_path
-		Write-Host "(下载)downloading" $info.prefix $info.version
-		wget --no-check-certificate https://nchc.dl.sourceforge.net/project/boost/boost/$version/$remote_prefix.tar.gz -O $PACKAGE_ROOT/$package
-		exit_on_error
+# 从github上下载源码
+# 如果本地不存在指定的zip包，或$md5为空或$md5校验码不匹配则从github下载
+# 如果本地存在指定的zip包，且$md5为空,则根据$FORCE_DOWNLOAD_IF_EXIST决定是否跳过下载直接解压
+# $info 项目配置信息 $xxxx_INFO
+function fetch_from_github([PSObject]$info){
+	args_not_null_empty_undefined info
+	$package=$info.folder+".zip"
+    $uri='https://github.com',$info.owner,$info.prefix,'archive',($info.package_prefix+$info.version+'.zip') -join '/'
+    download_and_extract $info -uri $uri
+	$unpack_folder=$info.prefix+'-'+$info.package_prefix+$info.version
+	if( $info.package_prefix -and (Test-Path (Join-Path $SOURCE_ROOT $unpack_folder) -PathType Container)){
+		Write-Host rename $unpack_folder to $info.folder
+        pushd $SOURCE_ROOT
+        Rename-Item -Path $unpack_folder -NewName $info.folder
+        exit_on_error
+        popd		
 	}
-	remove_if_exist $SOURCE_ROOT/$folder
-	echo "(解压缩文件)extracting file from $PACKAGE_ROOT/$package"
-	tar zxf$VERBOSE_EXTRACT $PACKAGE_ROOT/$package -C $SOURCE_ROOT
-	mv $SOURCE_ROOT/$remote_prefix $SOURCE_ROOT/$folder
+}
+###################################################
+# 从 sourceforge.net 下载 boost 
+function fetch_boost(){
+	$remote_prefix=$BOOST_INFO.prefix+'_'+$BOOST_INFO.version.Replace('.','_')
+    $uri='https://nchc.dl.sourceforge.net/project/boost/boost',$BOOST_INFO.version,($remote_prefix+$BOOST_INFO.package_suffix) -join '/'
+	download_and_extract -info $BOOST_INFO -uri $uri 
+	pushd $SOURCE_ROOT
+	Rename-Item -Path $remote_prefix -NewName $BOOST_INFO.folder
+    exit_on_error
+    popd
+}
+# 下载 hdf5
+function fetch_hdf5(){
+    $package_prefix="CMake-"+$HDF5_INFO.folder
+    $uri='https://support.hdfgroup.org/ftp/HDF5/releases',$HDF5_INFO.folder,'src',($package_prefix+$HDF5_INFO.package_suffix) -join '/'
+    download_and_extract -info $HDF5_INFO -uri $uri
+	pushd $SOURCE_ROOT
+	Rename-Item -Path $package_prefix -NewName $HDF5_INFO.folder
+    exit_on_error
+    popd
+}
+# 下载 cmake 压缩包解压到 $TOOLS_ROOT
+function fetch_cmake(){
+    $uri= 'https://cmake.org/files/v3.8',($CMAKE_INFO.folder+$CMAKE_INFO.package_suffix) -join '/'
+    download_and_extract -info $CMAKE_INFO -uri $uri -targetRoot $TOOLS_ROOT	
+}
+#################################################################
+function modify_snappy(){
+	$snappy_cmake=[io.path]::combine($SOURCE_ROOT,$SNAPPY_INFO.folder,"CMakeLists.txt")
+	echo "修改 $snappy_cmake ,删除 SHARED 参数"
+    (Get-Content $snappy_cmake -Raw ) -replace '(ADD_LIBRARY\s*\(\s*snappy\s*)SHARED','#modified by guyadong,remove SHARED
+$1'| Out-File $snappy_cmake
 	exit_on_error
 }
-function modify_snappy(){}
-function modify_ssd(){}
-
-$FORCE_DOWNLOAD_IF_EXIST=$false
-function fetch_protobuf(){ fetch_from_github "protobuf" ; }
-function fetch_gflags(){ fetch_from_github "gflags" ; }
-function fetch_glog(){ fetch_from_github "glog" ; }
-function fetch_leveldb(){ fetch_from_github "leveldb" ; }
-function fetch_lmdb(){ fetch_from_github "lmdb" ; }
-function etch_snappy(){ fetch_from_github "snappy" ; modify_snappy ; }
-function fetch_openblas(){ fetch_from_github "OpenBLAS" ; }
-function fetch_ssd(){ fetch_ssd_zip ; modify_ssd; }
-function fetch_opencv(){ fetch_from_github "opencv" ; }
+######################################################
+function modify_ssd(){
+	$ssd_src=Join-Path -Path $SOURCE_ROOT -ChildPath $SSD_INFO.folder
+	echo "(复制修改的补丁文件)copy patch file to $ssd_src"	
+    cp -Path (Join-Path -Path $PATCH_ROOT -ChildPath $SSD_INFO.folder) -Destination $SOURCE_ROOT -Recurse -Force -Verbose
+	exit_on_error 
+}
+function fetch_bzip2_1_0_5(){ fetch_from_github $BZIP2_INFO; }
+function fetch_protobuf(){ fetch_from_github $PROTOBUF_INFO ; }
+function fetch_gflags(){ fetch_from_github $GFLAGS_INFO ; }
+function fetch_glog(){ fetch_from_github $GLOG_INFO ; }
+function fetch_leveldb(){ fetch_from_github $LEVELDB_INFO ; }
+function fetch_lmdb(){ fetch_from_github $LMDB_INFO ; }
+function fetch_snappy(){ fetch_from_github $SNAPPY_INFO; modify_snappy ; }
+function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; }
+function fetch_ssd(){ fetch_from_github $SSD_INFO ; modify_ssd; }
+function fetch_opencv(){ fetch_from_github $OPENCV_INFO; }
 function fetch_bzip2(){ fetch_bzip2_1_0_5 ; }
-
+$FORCE_DOWNLOAD_IF_EXIST=$false
 #fetch_from_github glog
 #fetch_from_github lmdb
 #fetch_from_github snappy
+#fetch_opencv
+#fetch_hdf5
+fetch_ssd
+#fetch_cmake

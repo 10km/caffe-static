@@ -51,7 +51,7 @@ echo MAKE_C_COMPILER:$MAKE_C_COMPILER
 # 操作系统,CPU类型
 $HOST_OS,$HOST_PROCESSOR=get_os_processor
 echo HOST_OS=$HOST_OS
-echo HOST_OS=$HOST_PROCESSOR
+echo HOST_PROCESSOR=$HOST_PROCESSOR
 
 # cmake 参数定义
 $CMAKE_VARS_DEFINE="-DCMAKE_CXX_COMPILER:FILEPATH=$MAKE_CXX_COMPILER -DCMAKE_C_COMPILER:FILEPATH=$MAKE_C_COMPILER -DCMAKE_BUILD_TYPE:STRING=RELEASE"
@@ -151,7 +151,7 @@ $bzip2_hash=@{
 	prefix="bzip2"
 	version="1.0.5"
 	# 1.0.5 zip 包md5校验码(github下载)
-	MD5="052fec5cdcf9ae26026c3e85cea5f573"
+	md5="052fec5cdcf9ae26026c3e85cea5f573"
 	# 1.0.6 tar.gz包md5校验码(官网 bzip2.org 下载)
 	tar_gz_md5_1_0_6="00b516f4704d4a7cb50a1d97e6e8e15b"
 	owner="LuaDist"
@@ -188,27 +188,40 @@ $opencv_hash=@{
 	owner="opencv"
 	package_prefix=""
 }
-$OPENCV_INFO= create_project_info $opencv_hash
+[PSObject]$OPENCV_INFO= create_project_info $opencv_hash
 #$OPENCV_INFO
 
 $ssd_hash=@{
-	prefix="caffe-ssd"	
+	prefix="caffe"
+    version="ssd"
+    owner="weiliu89"	
 }
 $SSD_INFO= create_project_info $ssd_hash
 #$SSD_INFO
 
-$cmake_hash=@{
+$cmake_hash_linux=@{
+    prefix="cmake"
+    version="3.8.2"
 	md5="ab02cf61915e1ad15b8523347ad37c46"
 	folder="cmake-3.8.2-Linux-x86_64"
     package_suffix=".tar.gz"
 }
-$CMAKE_INFO= create_project_info $cmake_hash
+$cmake_hash_windows=@{
+    prefix="cmake"
+    version="3.8.2"
+    md5="8b28478c3c19d0e8ff895e8f4fd0c5b6"
+    folder="cmake-3.8.2-win32-x86"
+    package_suffix=".zip"
+}
+$CMAKE_INFO= create_project_info $cmake_hash_windows
 # 添加root属性
 Add-Member -InputObject $CMAKE_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $CMAKE_INFO.folder -Path $TOOLS_ROOT )
 # 添加exe属性
 Add-Member -InputObject $CMAKE_INFO -NotePropertyName exe -NotePropertyValue ([io.path]::combine($CMAKE_INFO.root,"bin","cmake"))
-#$CMAKE_INFO
-# wget.exe位置
-$WGET=[io.path]::combine($TOOLS_ROOT,"wget","wget")
 # 指定命令解压工具
+# 这里指定的exe，是支持命令行运行的版本,
+# 比如7z的 GUI版本的可执行文件是 7zfm.exe,命令行版本则是7z.exe
+# 好压(HaoZip)的GUI版本的可执行文件是 HaoZip.exe,命令行版本则是 HaoZipC.exe
 #$UNPACK_TOOL="C:\Program Files\7-Zip\7z.exe"
+#$UNPACK_TOOL="C:\Program Files\2345Soft\HaoZip\HaoZipC.exe"
+

@@ -125,7 +125,7 @@ function unzip([string]$zipFile,[string]$targetFolder){
     }    
     $shellApp = New-Object -ComObject Shell.Application
     $files = $shellApp.NameSpace($zipFile).Items()
-	echo "unzip to $targetFolder..."
+	echo "unzip to $targetFolder..."    
     $shellApp.NameSpace($targetFolder).CopyHere($files)
 }
 # 调用 haozip解压文件
@@ -163,7 +163,7 @@ function find_associated_exe([string]$suffix){
 	args_not_null_empty_undefined suffix
 	$Extension,$FileType=(cmd /c assoc $suffix) -split '='
     if(!$FileType){
-        Write-Host "请用手工指定 `$UNPACK_TOOL 变量指定解压缩软件,define `$UNPACK_TOOL to fix it"
+        Write-Host "请用手工指定build_vars.ps1中的 `$UNPACK_TOOL 变量指定解压缩软件,define `$UNPACK_TOOL to fix it"
         call_stack
         exit -1
     }    
@@ -194,8 +194,9 @@ function find_unpack_function([string]$suffix){
 # 如果 $targetFolder为空则默认解压到 $package所在文件夹
 function unpack([string]$package,[string]$targetFolder){
     args_not_null_empty_undefined package targetFolder
+    exit_if_not_exist $package -type Leaf
     if(! $targetFolder){
-        $targetFolder=(Get-Item $zipFile).Directory
+        $targetFolder=(Get-Item $package).Directory
     }
     $index=$package.LastIndexOf('.')
     if($index -lt 0){
@@ -203,6 +204,10 @@ function unpack([string]$package,[string]$targetFolder){
         echo "unkonw file fomat $package"
         call_stack
         exit -1
+    }
+    if(!( Test-Path -Path $targetFolder -PathType Container)){
+        mkdir $targetFolder
+        exit_on_error
     }
     $suffix=$package.Substring($index) 
     if ( $suffix -eq '.zip' ){
