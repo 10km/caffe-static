@@ -10,6 +10,18 @@ function call_stack([int]$index=1){
     echo "调用堆栈:"
     echo  $s2 
 }
+# 如果指定的函数名未定义则报错退出脚本
+function check_defined_function(){
+    echo $args| foreach {
+        $name=$($_)
+        # 判断名为$name的变量是否定义
+        if( ! (Test-Path function:$name) ){
+            echo "undefined function: '$name'"
+            call_stack 2
+            exit -1
+        }
+    }
+}
 # 变量名检查
 # 如果指定的变量名未定义或为空或null则报错退出脚本
 function args_not_null_empty_undefined(){

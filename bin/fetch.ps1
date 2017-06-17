@@ -87,7 +87,59 @@ function fetch_from_github([string]$project){
         popd		
 	}
 }
+
+function download_and_extract([string]$project,[string]$url,[string]$remote_prefix){
+	$package=$BOOST_INFO.folder + $BOOST_INFO.package_suffix
+	$package_path=Join-Path $PACKAGE_ROOT $package
+	$source_path=Join-Path $SOURCE_ROOT $info.folder
+	if( (need_download $package_path $info.md5)[-1] ){	
+		remove_if_exist $package_path
+		echo "${FUNCNAME[0]}:(下载源码)downloading $version $version source"
+		Invoke-WebRequest -Uri $url -OutFile $package_path 
+		exit_on_error
+	}
+	remove_if_exist $source_path
+	echo "(解压缩文件)extracting file from $package_path"
+	if ($project.package_suffix -ceq '.zip'){
+		unzip $package_path -targetFolder $SOURCE_ROOT	
+	}elseif($project.package_suffix -ceq '.tar.gz'){
+	}	
+	exit_on_error
+}
+###################################################
+function fetch_boost(){
+
+	$package=$BOOST_INFO.folder + ".tar.gz"
+	$remote_prefix=$BOOST_INFO.prefix+'_'+$BOOST_INFO.version.Replace('.','_')
+	$package_path=Join-Path $PACKAGE_ROOT $package
+	$source_path=Join-Path $SOURCE_ROOT $info.folder
+	if( (need_download $package_path $info.md5)[-1] ){	
+		remove_if_exist $package_path
+		Write-Host "(下载)downloading" $info.prefix $info.version
+		wget --no-check-certificate https://nchc.dl.sourceforge.net/project/boost/boost/$version/$remote_prefix.tar.gz -O $PACKAGE_ROOT/$package
+		exit_on_error
+	}
+	remove_if_exist $SOURCE_ROOT/$folder
+	echo "(解压缩文件)extracting file from $PACKAGE_ROOT/$package"
+	tar zxf$VERBOSE_EXTRACT $PACKAGE_ROOT/$package -C $SOURCE_ROOT
+	mv $SOURCE_ROOT/$remote_prefix $SOURCE_ROOT/$folder
+	exit_on_error
+}
+function modify_snappy(){}
+function modify_ssd(){}
+
 $FORCE_DOWNLOAD_IF_EXIST=$false
-fetch_from_github glog
-fetch_from_github lmdb
-fetch_from_github snappy
+function fetch_protobuf(){ fetch_from_github "protobuf" ; }
+function fetch_gflags(){ fetch_from_github "gflags" ; }
+function fetch_glog(){ fetch_from_github "glog" ; }
+function fetch_leveldb(){ fetch_from_github "leveldb" ; }
+function fetch_lmdb(){ fetch_from_github "lmdb" ; }
+function etch_snappy(){ fetch_from_github "snappy" ; modify_snappy ; }
+function fetch_openblas(){ fetch_from_github "OpenBLAS" ; }
+function fetch_ssd(){ fetch_ssd_zip ; modify_ssd; }
+function fetch_opencv(){ fetch_from_github "opencv" ; }
+function fetch_bzip2(){ fetch_bzip2_1_0_5 ; }
+
+#fetch_from_github glog
+#fetch_from_github lmdb
+#fetch_from_github snappy
