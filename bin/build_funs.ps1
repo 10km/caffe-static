@@ -8,7 +8,7 @@ function call_stack([int]$index=1){
     [array]$stack=$(Get-PSCallStack)
     $s2=$stack[$index..($stack.Count-1)]
     echo "调用堆栈:"
-    echo  $s2 
+    echo $s2 
 }
 # 如果指定的函数名未定义则报错退出脚本
 function check_defined_function(){
@@ -16,8 +16,8 @@ function check_defined_function(){
         $name=$($_)
         # 判断名为$name的变量是否定义
         if( ! (Test-Path function:$name) ){
-            echo "undefined function: '$name'"
-            call_stack 2
+            Write-Host "undefined function: '$name'"
+            call_stack 3
             exit -1
         }
     }
@@ -108,11 +108,13 @@ function md5sum([string]$file){
     exit_if_not_exist -file $file -type Leaf
     return $(Get-FileHash $file -Algorithm MD5).Hash.ToLower()
 }
-function unzip([string]$zipFile,[string]$targetFolder)
-{
+# 调用powershell内置功能解压缩 $package 指定的 zip 文件到 $targetFolder
+# 如果 $targetFolder为空则默认解压到 $package所在文件夹
+function unzip([string]$zipFile,[string]$targetFolder){
+    args_not_null_empty_undefined zipFile
     exit_if_not_exist $zipFile -type Leaf
     # 检查是否为zip后缀
-    if(!$zipFile.EndsWith(".zip")){
+    if(!$zipFile.ToLower().EndsWith(".zip")){
         echo "$zipFile not zip file"
         call_stack
         exit -1
@@ -121,10 +123,92 @@ function unzip([string]$zipFile,[string]$targetFolder)
     if(! $targetFolder){
         $targetFolder=(Get-Item $zipFile).Directory
     }    
-    #确保目标文件夹必须存在,目标文件夹存在 则清空文件夹
-    #clean_folder -folder $targetFolder
     $shellApp = New-Object -ComObject Shell.Application
     $files = $shellApp.NameSpace($zipFile).Items()
 	echo "unzip to $targetFolder..."
     $shellApp.NameSpace($targetFolder).CopyHere($files)
+}
+# 调用 haozip解压文件
+function unpack_haozip([string]$exe,[string]$package,[string]$targetFolder){
+    args_not_null_empty_undefined exe package targetFolder
+    exit_if_not_exist $exe -type Leaf 
+    $item=Get-Item $exe    
+    $unpack_exe=Join-Path -Path $item.Directory -ChildPath ('HaoZipC'+$item.Extension)
+    exit_if_not_exist $unpack_exe
+    $cmd="""$unpack_exe"" x $package -o$targetFolder"
+    cmd /c $cmd
+    exit_on_error    
+}
+# 调用 7z解压文件
+function unpack_7z([string]$exe,[string]$package,[string]$targetFolder){
+    args_not_null_empty_undefined exe package targetFolder
+    exit_if_not_exist $exe -type Leaf 
+    $item=Get-Item $exe
+    $unpack_exe=Join-Path -Path $item.Directory -ChildPath ('7z'+$item.Extension)
+    $cmd="""$unpack_exe"" x $package -o$targetFolder"
+    cmd /c $cmd
+    exit_on_error
+    if( $package.ToLower().EndsWith('.tar.gz')){        
+        $tar=Join-Path -Path $targetFolder -ChildPath (Get-Item $package).BaseName
+        $cmd="""$unpack_exe"" x $tar -o$targetFolder"
+        cmd /c $cmd
+        exit_on_error
+        remove_if_exist $tar
+        exit_on_error
+    }
+}
+
+# 查看后缀为$suffix的文件的本机文件关联程序
+function find_associated_exe([string]$suffix){
+	args_not_null_empty_undefined suffix
+	$Extension,$FileType=(cmd /c assoc $suffix) -split '='
+    if(!$FileType){
+        Write-Host "请用手工指定 `$UNPACK_TOOL 变量指定解压缩软件,define `$UNPACK_TOOL to fix it"
+        call_stack
+        exit -1
+    }    
+    $FileType,$Executable= (cmd /c ftype $FileType) -split '='
+    if( ! $Executable ){
+        call_stack
+        exit -1
+    }
+    # exe 全路径    
+   ($Executable -replace '^([^"\s]+|"[^"]+?")(\s.+)?$','$1') -replace '(^"|"$)',''
+}
+# 为后缀为$suffix压缩包寻找解压缩工具
+function find_unpack_function([string]$suffix){
+    if($UNPACK_TOOL){
+        exit_if_not_exist $UNPACK_TOOL -type Leaf -msg "没有找到 `$UNPACK_TOOL 指定的命令行解压缩工具 $UNPACK_TOOL"
+        $exe=$UNPACK_TOOL
+    }else{
+        $exe=find_associated_exe $suffix
+    }
+    $fun="unpack_"+ ((Get-Item $exe).BaseName.toLower() -replace '^.*(7z|haozip).*$','$1')
+    check_defined_function $fun
+    # 返回解压缩函数名 unpack_xxxx
+    $fun
+    # 返回解压缩工具软件的exe文件(全路径)
+    $exe
+}
+# 解压缩 $package 指定的文件到 $targetFolder
+# 如果 $targetFolder为空则默认解压到 $package所在文件夹
+function unpack([string]$package,[string]$targetFolder){
+    args_not_null_empty_undefined package targetFolder
+    if(! $targetFolder){
+        $targetFolder=(Get-Item $zipFile).Directory
+    }
+    $index=$package.LastIndexOf('.')
+    if($index -lt 0){
+        # 没有文件后缀，无法识别,报错退出
+        echo "unkonw file fomat $package"
+        call_stack
+        exit -1
+    }
+    $suffix=$package.Substring($index) 
+    if ( $suffix -eq '.zip' ){
+        unzip $package $targetFolder
+    }else{        
+        $fun,$exe=find_unpack_function $suffix
+        &$fun $exe $package $targetFolder
+    }
 }

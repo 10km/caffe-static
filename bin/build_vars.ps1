@@ -156,6 +156,7 @@ $bzip2_hash=@{
 	tar_gz_md5_1_0_6="00b516f4704d4a7cb50a1d97e6e8e15b"
 	owner="LuaDist"
 	package_prefix=""
+    package_suffix=".tar.gz"
 }
 $BZIP2_INFO= create_project_info $bzip2_hash
 #$BZIP2_INFO
@@ -164,6 +165,7 @@ $boost_hash=@{
 	prefix="boost"
 	version="1.58.0"
 	md5="5a5d5614d9a07672e1ab2a250b5defc5"
+    package_suffix=".tar.gz"
 }
 $BOOST_INFO= create_project_info $boost_hash
 #$BOOST_INFO
@@ -172,6 +174,7 @@ $hdf5_hash=@{
 	prefix="hdf5"
 	version="1.8.16"
 	md5="a7559a329dfe74e2dac7d5e2d224b1c2"
+    package_suffix=".tar.gz"
 }
 $HDF5_INFO= create_project_info $hdf5_hash
 #$HDF5_INFO
@@ -197,6 +200,7 @@ $SSD_INFO= create_project_info $ssd_hash
 $cmake_hash=@{
 	md5="ab02cf61915e1ad15b8523347ad37c46"
 	folder="cmake-3.8.2-Linux-x86_64"
+    package_suffix=".tar.gz"
 }
 $CMAKE_INFO= create_project_info $cmake_hash
 # 添加root属性
@@ -206,4 +210,5 @@ Add-Member -InputObject $CMAKE_INFO -NotePropertyName exe -NotePropertyValue ([i
 #$CMAKE_INFO
 # wget.exe位置
 $WGET=[io.path]::combine($TOOLS_ROOT,"wget","wget")
-
+# 指定命令解压工具
+#$UNPACK_TOOL="C:\Program Files\7-Zip\7z.exe"

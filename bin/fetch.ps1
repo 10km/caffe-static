@@ -87,24 +87,31 @@ function fetch_from_github([string]$project){
         popd		
 	}
 }
-
-function download_and_extract([string]$project,[string]$url,[string]$remote_prefix){
-	$package=$BOOST_INFO.folder + $BOOST_INFO.package_suffix
-	$package_path=Join-Path $PACKAGE_ROOT $package
-	$source_path=Join-Path $SOURCE_ROOT $info.folder
+# 下载并解压指定的项目文件
+function download_and_extract([string]$project,[string]$url,[string]$targetRoot=$SOURCE_ROOT,[string]$sourceRoot=$PACKAGE_ROOT){
+	args_not_null_empty_undefined project url
+    $name=($project.ToUpper()+"_INFO")
+    args_not_null_empty_undefined $name
+	$info=(Get-Variable -Name $name).Value
+    if ( !( $info -is [PSObject]) ){
+        echo "type of $name :must be [PSObject] "
+        exit -1
+    }
+    if($info.package_suffix){
+	    $package=$info.folder + $info.package_suffix
+    }else{
+        $package=$info.folder + ".zip"
+    }
+	$package_path=Join-Path $sourceRoot $package
 	if( (need_download $package_path $info.md5)[-1] ){	
 		remove_if_exist $package_path
-		echo "${FUNCNAME[0]}:(下载源码)downloading $version $version source"
+		Write-Host "(下载源码)downloading" $info.prefix $info.version source
 		Invoke-WebRequest -Uri $url -OutFile $package_path 
 		exit_on_error
 	}
-	remove_if_exist $source_path
+	remove_if_exist (Join-Path $targetRoot $info.folder)
 	echo "(解压缩文件)extracting file from $package_path"
-	if ($project.package_suffix -ceq '.zip'){
-		unzip $package_path -targetFolder $SOURCE_ROOT	
-	}elseif($project.package_suffix -ceq '.tar.gz'){
-	}	
-	exit_on_error
+	unpack $package_path -targetFolder $targetRoot	
 }
 ###################################################
 function fetch_boost(){
