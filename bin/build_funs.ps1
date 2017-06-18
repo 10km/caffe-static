@@ -135,7 +135,11 @@ function unpack_haozip([string]$exe,[string]$package,[string]$targetFolder){
     $item=Get-Item $exe    
     $unpack_exe=Join-Path -Path $item.Directory -ChildPath ('HaoZipC'+$item.Extension)
     exit_if_not_exist $unpack_exe
-    $cmd="""$unpack_exe"" x $package -o$targetFolder"
+    $cmd="""$unpack_exe"" x $package -o$targetFolder -y"
+    if( ! $VERBOSE_EXTRACT ){
+        # -sn：禁止文字输出
+        $cmd+=' -sn'
+    }    
     cmd /c $cmd
     exit_on_error    
 }
@@ -145,12 +149,19 @@ function unpack_7z([string]$exe,[string]$package,[string]$targetFolder){
     exit_if_not_exist $exe -type Leaf 
     $item=Get-Item $exe
     $unpack_exe=Join-Path -Path $item.Directory -ChildPath ('7z'+$item.Extension)
-    $cmd="""$unpack_exe"" x $package -o$targetFolder"
+    $cmd="""$unpack_exe"" x $package -o$targetFolder -y"
+    if($VERBOSE_EXTRACT){
+        # -bb[0-3] : set output log level
+        $cmd+=' -bb1'
+    }   
     cmd /c $cmd
     exit_on_error
     if( $package.ToLower().EndsWith('.tar.gz')){        
         $tar=Join-Path -Path $targetFolder -ChildPath (Get-Item $package).BaseName
-        $cmd="""$unpack_exe"" x $tar -o$targetFolder"
+        $cmd="""$unpack_exe"" x $tar -o$targetFolder -y"
+        if($VERBOSE_EXTRACT){
+            $cmd+=' -bb1'
+        }   
         cmd /c $cmd
         exit_on_error
         remove_if_exist $tar
@@ -176,6 +187,8 @@ function find_associated_exe([string]$suffix){
    ($Executable -replace '^([^"\s]+|"[^"]+?")(\s.+)?$','$1') -replace '(^"|"$)',''
 }
 # 为后缀为$suffix压缩包寻找解压缩工具
+# 如果定义了 $UNPACK_TOOL 则优先使用它做为解压缩工具
+# 否则 调用 assoc,ftype 来查找对应的解压缩工具，如果找不到就报错退出
 function find_unpack_function([string]$suffix){
     if($UNPACK_TOOL){
         exit_if_not_exist $UNPACK_TOOL -type Leaf -msg "没有找到 `$UNPACK_TOOL 指定的命令行解压缩工具 $UNPACK_TOOL"
@@ -185,6 +198,7 @@ function find_unpack_function([string]$suffix){
     }
     $fun="unpack_"+ ((Get-Item $exe).BaseName.toLower() -replace '^.*(7z|haozip).*$','$1')
     check_defined_function $fun
+    exit_if_not_exist $exe -type Leaf -msg "没有找到解压缩工具 $exe"
     # 返回解压缩函数名 unpack_xxxx
     $fun
     # 返回解压缩工具软件的exe文件(全路径)
@@ -210,10 +224,11 @@ function unpack([string]$package,[string]$targetFolder){
         exit_on_error
     }
     $suffix=$package.Substring($index) 
-    if ( $suffix -eq '.zip' ){
-        unzip $package $targetFolder
-    }else{        
+    #if ( $suffix -eq '.zip' ){
+    #    unzip $package $targetFolder
+    #}else{        
         $fun,$exe=find_unpack_function $suffix
+        # 调用 unpack_xxxx(haozip|7z)解压
         &$fun $exe $package $targetFolder
-    }
+    #}
 }

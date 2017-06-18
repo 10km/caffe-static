@@ -146,20 +146,25 @@ $lmdb_hash=@{
 $LMDB_INFO= create_project_info $lmdb_hash
 #$LMDB_INFO
 
-
+# 1.0.5 zip 包(github下载)
 $bzip2_hash=@{
 	prefix="bzip2"
 	version="1.0.5"
-	# 1.0.5 zip 包md5校验码(github下载)
 	md5="052fec5cdcf9ae26026c3e85cea5f573"
-	# 1.0.6 tar.gz包md5校验码(官网 bzip2.org 下载)
-	tar_gz_md5_1_0_6="00b516f4704d4a7cb50a1d97e6e8e15b"
 	owner="LuaDist"
+	package_prefix=""
+}
+$BZIP2_INFO= create_project_info $bzip2_hash
+
+# 1.0.6 tar.gz包(官网 bzip2.org 下载)
+$bzip2_1_0_6_hash=@{
+	prefix="bzip2"
+	version="1.0.6"
+	md5="00b516f4704d4a7cb50a1d97e6e8e15b"
 	package_prefix=""
     package_suffix=".tar.gz"
 }
-$BZIP2_INFO= create_project_info $bzip2_hash
-#$BZIP2_INFO
+$BZIP2_1_0_6_INFO= create_project_info $bzip2_1_0_6_hash
 
 $boost_hash=@{
 	prefix="boost"
@@ -222,6 +227,7 @@ Add-Member -InputObject $CMAKE_INFO -NotePropertyName exe -NotePropertyValue ([i
 # 这里指定的exe，是支持命令行运行的版本,
 # 比如7z的 GUI版本的可执行文件是 7zfm.exe,命令行版本则是7z.exe
 # 好压(HaoZip)的GUI版本的可执行文件是 HaoZip.exe,命令行版本则是 HaoZipC.exe
+# 如果不设置此值，脚本会通过 assoc,ftype命令查找，但有可能查找不到
 #$UNPACK_TOOL="C:\Program Files\7-Zip\7z.exe"
 #$UNPACK_TOOL="C:\Program Files\2345Soft\HaoZip\HaoZipC.exe"
 

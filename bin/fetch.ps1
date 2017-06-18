@@ -97,7 +97,7 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
 function fetch_from_github([PSObject]$info){
 	args_not_null_empty_undefined info
 	$package=$info.folder+".zip"
-    $uri='https://github.com',$info.owner,$info.prefix,'archive',($info.package_prefix+$info.version+'.zip') -join '/'
+    $uri="https://github.com/$($info.owner)/$($info.prefix)/archive/$($info.package_prefix)$($info.version).zip"
     download_and_extract $info -uri $uri
 	$unpack_folder=$info.prefix+'-'+$info.package_prefix+$info.version
 	if( $info.package_prefix -and (Test-Path (Join-Path $SOURCE_ROOT $unpack_folder) -PathType Container)){
@@ -112,7 +112,7 @@ function fetch_from_github([PSObject]$info){
 # 从 sourceforge.net 下载 boost 
 function fetch_boost(){
 	$remote_prefix=$BOOST_INFO.prefix+'_'+$BOOST_INFO.version.Replace('.','_')
-    $uri='https://nchc.dl.sourceforge.net/project/boost/boost',$BOOST_INFO.version,($remote_prefix+$BOOST_INFO.package_suffix) -join '/'
+    $uri="https://nchc.dl.sourceforge.net/project/boost/boost/$($BOOST_INFO.version)/$remote_prefix$($BOOST_INFO.package_suffix)"
 	download_and_extract -info $BOOST_INFO -uri $uri 
 	pushd $SOURCE_ROOT
 	Rename-Item -Path $remote_prefix -NewName $BOOST_INFO.folder
@@ -131,14 +131,31 @@ function fetch_hdf5(){
 }
 # 下载 cmake 压缩包解压到 $TOOLS_ROOT
 function fetch_cmake(){
-    $uri= 'https://cmake.org/files/v3.8',($CMAKE_INFO.folder+$CMAKE_INFO.package_suffix) -join '/'
+    $uri= "https://cmake.org/files/v3.8/$($CMAKE_INFO.folder)$($CMAKE_INFO.package_suffix)"
     download_and_extract -info $CMAKE_INFO -uri $uri -targetRoot $TOOLS_ROOT	
+}
+# 下载 bzip2 1.0.6 
+function fetch_bzip2_1_0_6(){
+    $uri="http://www.bzip.org/$($BZIP2_1_0_6_INFO.version)/$($BZIP2_1_0_6_INFO.folder)$($BZIP2_1_0_6_INFO.package_suffix)"
+    download_and_extract -info $BZIP2_1_0_6_INFO -uri $uri 
+    modify_bzip2_1_0_6
+}
+#################################################################
+function modify_bzip2_1_0_6(){
+	$bzip2_makefile=[io.path]::combine($SOURCE_ROOT,$BZIP2_1_0_6_INFO.folder,"Makefile")
+    exit_if_not_exist $bzip2_makefile -type Leaf
+    if(! (Get-Content $bzip2_makefile|Select-String  -Pattern '^\s*CFLAGS\s*=\s*' | Select-String -Pattern '-fPIC') ){
+        echo "修改 $bzip2_makefile,在编译选项中增加 -fPIC 参数"
+        (Get-Content $bzip2_makefile) -replace '(^\s*CFLAGS\s*=)(.*$)','#modified by guyadong,add -fPIC
+$1-fPIC $2' | Out-File $bzip2_makefile
+        exit_on_error
+    }	
 }
 #################################################################
 function modify_snappy(){
 	$snappy_cmake=[io.path]::combine($SOURCE_ROOT,$SNAPPY_INFO.folder,"CMakeLists.txt")
 	echo "修改 $snappy_cmake ,删除 SHARED 参数"
-    (Get-Content $snappy_cmake -Raw ) -replace '(ADD_LIBRARY\s*\(\s*snappy\s*)SHARED','#modified by guyadong,remove SHARED
+    (Get-Content $snappy_cmake) -replace '(^\s*ADD_LIBRARY\s*\(\s*snappy\s*)SHARED','#modified by guyadong,remove SHARED
 $1'| Out-File $snappy_cmake
 	exit_on_error
 }
@@ -149,6 +166,7 @@ function modify_ssd(){
     cp -Path (Join-Path -Path $PATCH_ROOT -ChildPath $SSD_INFO.folder) -Destination $SOURCE_ROOT -Recurse -Force -Verbose
 	exit_on_error 
 }
+
 function fetch_bzip2_1_0_5(){ fetch_from_github $BZIP2_INFO; }
 function fetch_protobuf(){ fetch_from_github $PROTOBUF_INFO ; }
 function fetch_gflags(){ fetch_from_github $GFLAGS_INFO ; }
@@ -160,11 +178,18 @@ function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; }
 function fetch_ssd(){ fetch_from_github $SSD_INFO ; modify_ssd; }
 function fetch_opencv(){ fetch_from_github $OPENCV_INFO; }
 function fetch_bzip2(){ fetch_bzip2_1_0_5 ; }
+# 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载
 $FORCE_DOWNLOAD_IF_EXIST=$false
+# 运行过程中是否显示显示详细的进行步骤
+$VERBOSE_EXTRACT=$false
 #fetch_from_github glog
 #fetch_from_github lmdb
 #fetch_from_github snappy
 #fetch_opencv
 #fetch_hdf5
-fetch_ssd
+#fetch_boost
+#fetch_bzip2
+#fetch_bzip2_1_0_6
+#fetch_ssd
 #fetch_cmake
+fetch_snappy
