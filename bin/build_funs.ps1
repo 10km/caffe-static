@@ -228,7 +228,7 @@ function unpack([string]$package,[string]$targetFolder){
     #    unzip $package $targetFolder
     #}else{        
         $fun,$exe=find_unpack_function $suffix
-        # 调用 unpack_xxxx(haozip|7z)解压
+        # 调用 unpack_(haozip|7z)函数解压
         &$fun $exe $package $targetFolder
     #}
 }

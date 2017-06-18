@@ -190,40 +190,42 @@ function print_help(){
     if($(chcp ) -match '\.*936$'){
 	    echo "用法: $my_name [-names] [项目名称列表,...] [可选项...] 
 下载并解压指定的项目，如果没有指定项目名称，则下载解压所有项目
-    -names       项目名称列表(逗号分隔,忽略大小写)
+    -n,-names       项目名称列表(逗号分隔,忽略大小写)
                  可选的项目名称: $all_names 
 选项:
-	-verbose     显示详细信息
-	-force       强制下载没有指定版本号的项目
-	-help        显示帮助信息
+	-v,-verbose     显示详细信息
+	-f,-force       强制下载没有指定版本号的项目
+	-h,-help        显示帮助信息
 作者: guyadong@gdface.net
 "
     }else{
         echo "usage: $my_name [-names] [PROJECT_NAME,...] [options...] 
 download and extract projects specified by project name,
 all projects fetched without argument
-    -names       prject names(split by comma,ignore case)
+    -n,-names       prject names(split by comma,ignore case)
                  optional project names: $all_names 
 
 options:
-	-verbose     list verbosely
-	-force       force download if package without version is exist  
-	-help        print the message
+	-v,-verbose     list verbosely
+	-f,-force       force download if package without version is exist  
+	-h,-help        print the message
 author: guyadong@gdface.net
 "
     }
 }
-if($help){
-    print_help  
-    exit 0
-}
+# 所有项目列表
 $all_names="cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd"
+# 当前脚本名称
 $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载
 $FORCE_DOWNLOAD_IF_EXIST=$force
 # 运行过程中是否显示显示详细的进行步骤
 $VERBOSE_EXTRACT=$verbose
 # 检查所有项目名称参数，如果是无效值则报错退出
+if($help){
+    print_help  
+    exit 0
+}
 echo $names| foreach {    
     if( $_ -and ! (Test-Path function:"fetch_$($_.ToUpper())") ){
         echo "(不识别的项目名称)unknow project name:$_"
