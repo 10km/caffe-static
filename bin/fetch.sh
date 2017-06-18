@@ -265,8 +265,11 @@ fetch_bzip2(){ fetch_bzip2_1_0_5 ; }
 print_help(){
 	cat <<EOF
 usage: $(basename $0) [PROJECT_NAME...]
+download and extract projects specified by project name,
+all projects fetched without argument
 optional project names: $all_names (ignore case)
-download and extract all projects without argument
+
+options:
 	-v,--verbose     list verbosely
 	-f,--force       force download if package without version is exist  
 	-h,--help        print the message
