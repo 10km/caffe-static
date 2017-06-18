@@ -1,3 +1,9 @@
+param(
+[string[]]$names=($all_names -split ' ') ,
+[switch]$force,
+[switch]$verbose,
+[switch]$help
+)
 . "./build_vars.ps1"
 <#
 下载caffe-ssd及其所有依赖库的源码以及cmake工具，
@@ -178,18 +184,59 @@ function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; }
 function fetch_ssd(){ fetch_from_github $SSD_INFO ; modify_ssd; }
 function fetch_opencv(){ fetch_from_github $OPENCV_INFO; }
 function fetch_bzip2(){ fetch_bzip2_1_0_5 ; }
+
+# 输出帮助信息
+function print_help(){
+    if($(chcp ) -match '\.*936$'){
+	    echo "用法: $my_name [可选项...][项目名称列表,...]
+下载并解压指定的项目，如果没有指定项目名称，则下载解压所有项目
+
+可选的项目名称: $all_names (逗号分隔,忽略大小写)
+
+选项:
+	-v,--verbose     显示详细信息
+	-f,--force       强制下载没有指定版本号的项目
+	-h,--help        显示帮助信息
+作者: guyadong@gdface.net
+"
+    }else{
+        echo "usage: $my_name [options...][PROJECT_NAME,...]
+download and extract projects specified by project name,
+all projects fetched without argument
+
+optional project names: $all_names (split by comma,ignore case)
+
+options:
+	-v,--verbose     list verbosely
+	-f,--force       force download if package without version is exist  
+	-h,--help        print the message
+author: guyadong@gdface.net
+"
+    }
+}
+if($help){
+    print_help  
+    exit 0
+}
+$all_names="cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd"
+$my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载
-$FORCE_DOWNLOAD_IF_EXIST=$false
+$FORCE_DOWNLOAD_IF_EXIST=$force
 # 运行过程中是否显示显示详细的进行步骤
-$VERBOSE_EXTRACT=$false
-#fetch_from_github glog
-#fetch_from_github lmdb
-#fetch_from_github snappy
-#fetch_opencv
-#fetch_hdf5
-#fetch_boost
-#fetch_bzip2
-#fetch_bzip2_1_0_6
-#fetch_ssd
-#fetch_cmake
-fetch_snappy
+$VERBOSE_EXTRACT=$verbose
+# 检查所有项目名称参数，如果是无效值则报错退出
+echo $names| foreach {    
+    if( ! (Test-Path function:"fetch_$($_.ToUpper())") ){
+        echo "(不识别的项目名称)unknow project name:$_"
+        print_help
+        exit -1
+    }
+}
+# 创建 package,source,tools 根目录
+mkdir_if_not_exist $PACKAGE_ROOT
+mkdir_if_not_exist $SOURCE_ROOT
+mkdir_if_not_exist $TOOLS_ROOT
+# 顺序下载解压 $fetch_projects中指定的项目
+echo $names| foreach {  
+    &"fetch_$($_.ToUpper())"  
+}
