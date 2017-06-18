@@ -44,7 +44,8 @@ function create_project_info([hashtable]$hash){
 	}
     return $info
 }
-
+# 默认的GCC编译器安装路径
+#DEFAULT_GCC=
 # 指定编译器
 echo 编译器位置：
 echo MAKE_CXX_COMPILER:$MAKE_CXX_COMPILER
@@ -74,27 +75,23 @@ $TOOLS_ROOT=Join-Path -ChildPath tools -Path $DEPENDS_ROOT
 # 多线程编译参数 make -j 
 $MAKE_JOBS=get_logic_core_count
 ##################################项目配置信息
-$protobuf_hash=@{
+$PROTOBUF_INFO= create_project_info @{
 	prefix="protobuf"
 	version="3.3.1"
 	md5="9377e414994fa6165ecb58a41cca3b40"
 	owner="google"
 	package_prefix="v"
 }
-$PROTOBUF_INFO= create_project_info $protobuf_hash
-#$PROTOBUF_INFO
 
-$glog_hash=@{
+$GLOG_INFO= create_project_info @{
 	prefix="glog"
 	version="0.3.5"
 	md5="454766d0124951091c95bad33dafeacd"
 	owner="google"
 	package_prefix="v"
 }
-$GLOG_INFO= create_project_info $glog_hash
-#$GLOG_INFO
 
-$gflags_hash=@{
+$GFLAGS_INFO= create_project_info @{
 	prefix="gflags"
 	version="2.2.0"
 	md5="f3d31a4225a7e0e6cac50b2b65525317"
@@ -103,89 +100,77 @@ $gflags_hash=@{
 	owner="gflags"
 	package_prefix="v"
 }
-$GFLAGS_INFO= create_project_info $gflags_hash
-#$GFLAGS_INFO
 
-$leveldb_hash=@{
+$LEVELDB_INFO= create_project_info @{
 	prefix="leveldb"
 	version="1.18"
 	md5="06e9f4984e40ccf27af366d5bec0580a"
 	owner="google"
 	package_prefix="v"
 }
-$LEVELDB_INFO= create_project_info $leveldb_hash
-#$LEVELDB_INFO
 
-$snappy_hash=@{
+$SNAPPY_INFO= create_project_info @{
 	prefix="snappy"
-	version_1_1_4="1.1.4"
-	md5_1_1_4="b9bdbb6818d9c66b31edb6c037fef3d0"
 	version="master"
 	owner="google"
 	package_prefix=""
 }
-$SNAPPY_INFO= create_project_info $snappy_hash
-#$SNAPPY_INFO
-
-$openblas_hash=@{
+$SNAPPY_1_1_4_INFO= create_project_info @{
+	prefix="snappy"
+	version="1.1.4"
+	md5="b9bdbb6818d9c66b31edb6c037fef3d0"
+	owner="google"
+	package_prefix=""
+}
+$OPENBLAS_INFO= create_project_info @{
 	prefix="OpenBLAS"
 	version="0.2.18"
 	md5="4ca49eb1c45b3ca82a0034ed3cc2cef1"
 	owner="xianyi"
 	package_prefix="v"
 }
-$OPENBLAS_INFO= create_project_info $openblas_hash
-#$OPENBLAS_INFO
 
-$lmdb_hash=@{
+$LMDB_INFO= create_project_info @{
 	prefix="lmdb"
 	version="0.9.21"
 	md5="a47ddf0fade922e8335226726be5e6c4"
 	owner="LMDB"
 	package_prefix="LMDB_"
 }
-$LMDB_INFO= create_project_info $lmdb_hash
-#$LMDB_INFO
 
 # 1.0.5 zip 包(github下载)
-$bzip2_hash=@{
+$BZIP2_INFO= create_project_info @{
 	prefix="bzip2"
 	version="1.0.5"
 	md5="052fec5cdcf9ae26026c3e85cea5f573"
 	owner="LuaDist"
 	package_prefix=""
 }
-$BZIP2_INFO= create_project_info $bzip2_hash
 
 # 1.0.6 tar.gz包(官网 bzip2.org 下载)
-$bzip2_1_0_6_hash=@{
+$BZIP2_1_0_6_INFO= create_project_info @{
 	prefix="bzip2"
 	version="1.0.6"
 	md5="00b516f4704d4a7cb50a1d97e6e8e15b"
 	package_prefix=""
     package_suffix=".tar.gz"
 }
-$BZIP2_1_0_6_INFO= create_project_info $bzip2_1_0_6_hash
 
-$boost_hash=@{
+$BOOST_INFO= create_project_info @{
 	prefix="boost"
 	version="1.58.0"
 	md5="5a5d5614d9a07672e1ab2a250b5defc5"
     package_suffix=".tar.gz"
 }
-$BOOST_INFO= create_project_info $boost_hash
-#$BOOST_INFO
 
-$hdf5_hash=@{
+$HDF5_INFO= create_project_info @{
 	prefix="hdf5"
 	version="1.8.16"
 	md5="a7559a329dfe74e2dac7d5e2d224b1c2"
     package_suffix=".tar.gz"
 }
-$HDF5_INFO= create_project_info $hdf5_hash
-#$HDF5_INFO
 
-$opencv_hash=@{
+$OPENCV_INFO= create_project_info @{
 	prefix="opencv"
 	version_2_4_9="2.4.9"
 	md5_2_4_9="7f958389e71c77abdf5efe1da988b80c"
@@ -194,16 +179,12 @@ $opencv_hash=@{
 	owner="opencv"
 	package_prefix=""
 }
-[PSObject]$OPENCV_INFO= create_project_info $opencv_hash
-#$OPENCV_INFO
 
-$ssd_hash=@{
+$SSD_INFO= create_project_info @{
 	prefix="caffe"
     version="ssd"
     owner="weiliu89"	
 }
-$SSD_INFO= create_project_info $ssd_hash
-#$SSD_INFO
 
 $cmake_hash_linux=@{
     prefix="cmake"
