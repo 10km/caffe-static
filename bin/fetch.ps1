@@ -188,28 +188,27 @@ function fetch_bzip2(){ fetch_bzip2_1_0_5 ; }
 # 输出帮助信息
 function print_help(){
     if($(chcp ) -match '\.*936$'){
-	    echo "用法: $my_name [可选项...][项目名称列表,...]
+	    echo "用法: $my_name [-names] [项目名称列表,...] [可选项...] 
 下载并解压指定的项目，如果没有指定项目名称，则下载解压所有项目
-
-可选的项目名称: $all_names (逗号分隔,忽略大小写)
-
+    -names       项目名称列表(逗号分隔,忽略大小写)
+                 可选的项目名称: $all_names 
 选项:
-	-v,--verbose     显示详细信息
-	-f,--force       强制下载没有指定版本号的项目
-	-h,--help        显示帮助信息
+	-verbose     显示详细信息
+	-force       强制下载没有指定版本号的项目
+	-help        显示帮助信息
 作者: guyadong@gdface.net
 "
     }else{
-        echo "usage: $my_name [options...][PROJECT_NAME,...]
+        echo "usage: $my_name [-names] [PROJECT_NAME,...] [options...] 
 download and extract projects specified by project name,
 all projects fetched without argument
-
-optional project names: $all_names (split by comma,ignore case)
+    -names       prject names(split by comma,ignore case)
+                 optional project names: $all_names 
 
 options:
-	-v,--verbose     list verbosely
-	-f,--force       force download if package without version is exist  
-	-h,--help        print the message
+	-verbose     list verbosely
+	-force       force download if package without version is exist  
+	-help        print the message
 author: guyadong@gdface.net
 "
     }
@@ -226,7 +225,7 @@ $FORCE_DOWNLOAD_IF_EXIST=$force
 $VERBOSE_EXTRACT=$verbose
 # 检查所有项目名称参数，如果是无效值则报错退出
 echo $names| foreach {    
-    if( ! (Test-Path function:"fetch_$($_.ToUpper())") ){
+    if( $_ -and ! (Test-Path function:"fetch_$($_.ToUpper())") ){
         echo "(不识别的项目名称)unknow project name:$_"
         print_help
         exit -1
@@ -236,7 +235,9 @@ echo $names| foreach {
 mkdir_if_not_exist $PACKAGE_ROOT
 mkdir_if_not_exist $SOURCE_ROOT
 mkdir_if_not_exist $TOOLS_ROOT
-# 顺序下载解压 $fetch_projects中指定的项目
+# 顺序下载解压 $names 中指定的项目
 echo $names| foreach {  
-    &"fetch_$($_.ToUpper())"  
+    if( $_){
+        &"fetch_$($_.ToUpper())"  
+    }    
 }
