@@ -14,7 +14,8 @@ function where_first($who){
     args_not_null_empty_undefined who    
     cmd /c "where $who >nul 2>nul"
     if($?){
-        $(cmd /c "where $who")[0]
+        $w=$(cmd /c "where $who")
+        if($w.Count -gt 1){$w[0]}else{$w}
     }
 }
 # 根据提供的编译器类型列表，按顺序在系统中侦测安装的编译器，
