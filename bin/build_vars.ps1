@@ -23,16 +23,19 @@ function get_os_processor(){
 }
 # 生成安装路径名后缀
 function install_suffix([string]$prefix){
-	args_not_null_empty_undefined prefix HOST_OS HOST_PROCESSOR
-	return "${prefix}_${HOST_OS}_${HOST_PROCESSOR}"
+	#args_not_null_empty_undefined prefix HOST_OS HOST_PROCESSOR
+	#return "${prefix}_${HOST_OS}_${HOST_PROCESSOR}"
+    args_not_null_empty_undefined prefix HOST_OS BUILD_INFO
+    return "${prefix}_${HOST_OS}_$($BUILD_INFO.compiler)_$($BUILD_INFO.arch)"
 }
 # 根据哈希表提供的信息创建project info对象
-function create_project_info([hashtable]$hash){
+function create_project_info([hashtable]$hash,[switch]$no_install_path){
 	args_not_null_empty_undefined hash INSTALL_PREFIX_ROOT
     $info= New-Object PSObject  -Property $hash
     # 没有定义 prefix 的不定义install_path
-    if($info.prefix){
-	    Add-Member -InputObject $info -NotePropertyName install_path -NotePropertyValue $(Join-Path -ChildPath $(install_suffix $info.prefix) -Path $INSTALL_PREFIX_ROOT) 
+    if($info.prefix -and !$no_install_path){
+	    #Add-Member -InputObject $info -NotePropertyName install_path -NotePropertyValue $(Join-Path -ChildPath $(install_suffix $info.prefix) -Path $INSTALL_PREFIX_ROOT) 
+        Add-Member -InputObject $info -MemberType ScriptMethod -Name install_path -Value {$(Join-Path -ChildPath $(install_suffix $this.prefix) -Path $INSTALL_PREFIX_ROOT)}
     }
     $f=$info.prefix
     # 如果没有定义版本号，则folder与prefix相同
@@ -46,17 +49,8 @@ function create_project_info([hashtable]$hash){
 }
 # 默认的GCC编译器安装路径
 #DEFAULT_GCC=
-# 指定编译器
-echo 编译器位置：
-echo MAKE_CXX_COMPILER:$MAKE_CXX_COMPILER
-echo MAKE_C_COMPILER:$MAKE_C_COMPILER
 # 操作系统,CPU类型
 $HOST_OS,$HOST_PROCESSOR=get_os_processor
-echo HOST_OS=$HOST_OS
-echo HOST_PROCESSOR=$HOST_PROCESSOR
-
-# cmake 参数定义
-$CMAKE_VARS_DEFINE="-DCMAKE_CXX_COMPILER:FILEPATH=$MAKE_CXX_COMPILER -DCMAKE_C_COMPILER:FILEPATH=$MAKE_C_COMPILER -DCMAKE_BUILD_TYPE:STRING=RELEASE"
 # 脚本所在路径
 $BIN_ROOT=$(Get-Item $MyInvocation.MyCommand.Definition).Directory
 # 项目根目录
@@ -200,7 +194,7 @@ $cmake_hash_windows=@{
     folder="cmake-3.8.2-win32-x86"
     package_suffix=".zip"
 }
-$CMAKE_INFO= create_project_info $cmake_hash_windows
+$CMAKE_INFO= create_project_info $cmake_hash_windows -no_install_path
 # 添加root属性
 Add-Member -InputObject $CMAKE_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $CMAKE_INFO.folder -Path $TOOLS_ROOT )
 # 添加exe属性

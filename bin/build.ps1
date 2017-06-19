@@ -7,24 +7,128 @@ param(
 [switch]$help
 )
 . "./build_vars.ps1"
-function check_cmd_args(
-    [ValidateSet('auto','vs2015','vs2013','gcc')][string]$compiler,
-    [ValidateSet('auto','x86','x86_64')][string]$arch,
-    [string]$gcc){
-    if($gcc ){
-        exit_if_not_exist $gcc -type Leaf -msg "指定的gcc编译器不存在"
-        $compiler='gcc'
+# 根据提供的编译器类型列表，按顺序在系统中侦测安装的编译器，
+# 如果找到就返回找到的编译类型名,
+# 如果没有找到任何一种编译器则报错退出
+function detect_compiler(){    
+    foreach ( $arg in $args){
+        switch -Regex ($arg){
+        '^(vs2015|vs2013)$'{ 
+            $vscomntools_name=$BUILD_INFO."env_$arg"
+            args_not_null_empty_undefined vscomntools_name
+            $vscomntools_value=(ls env:$vscomntools_name -ErrorAction SilentlyContinue).value
+            $vc_root=(Get-Item $([io.path]::Combine($vscomntools_value,'..','..','VC')) -ErrorAction SilentlyContinue).FullName
+            $cl_exe="$([io.path]::Combine($vc_root,'bin','cl.exe'))"
+            
+            if($vscomntools_value -and (Test-Path "$([io.path]::Combine($vc_root,'bin','cl.exe'))" -PathType Leaf)){
+                $BUILD_INFO.msvc_root=$vc_root
+                $BUILD_INFO.cmake_vars_define="-G ""NMake Makefiles"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"   
+                $BUILD_INFO.make_exe="nmake"  
+                return $arg
+            }
+        }
+        '^gcc$'{ 
+            $gcc_exe='gcc.exe'
+            if($BUILD_INFO.gcc_location){
+                $gcc_exe=Join-Path $BUILD_INFO.gcc_location -ChildPath $gcc_exe
+            }else{
+                $gcc_exe=$(cmd /c where $gcc_exe)
+                if(!$gcc_exe){continue}
+            }            
+            if(Test-Path $gcc_exe -PathType Leaf){
+                $BUILD_INFO.gcc_version=&$gcc_exe -dumpversion
+                exit_on_error 
+                $BUILD_INFO.gcc_location= (Get-Item $gcc_exe).Directory
+                $BUILD_INFO.gcc_c_compiler=$gcc_exe
+                $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath 'g++.exe'
+                $BUILD_INFO.cmake_vars_define="-DCMAKE_C_COMPILER:FILEPATH=$($BUILD_INFO.gcc_c_compiler) -DCMAKE_CXX_COMPILER:FILEPATH=$($BUILD_INFO.gcc_cxx_compiler) -DCMAKE_BUILD_TYPE:STRING=RELEASE"
+                $BUILD_INFO.make_exe="$(Join-Path $BUILD_INFO.gcc_location -ChildPath 'make.exe') -j $MAKE_JOBS"
+                return $arg
+            }
+            
+        }
+        Default { echo "invalid compiler type:$arg";call_stack;exit -1}
+        }
     }
-    if($gcc -and $compiler -ne 'gcc' ){
-        echo '只有-compiler 为'gcc'时,才能指定-gcc参数'
-        exit -1
-    }
+    echo "(没有找到指定的任何一种编译器，你确定安装了么?)not found compiler:$args"
+    exit -1
 }
 
-function check_vs2013(){
+function init_build_info(){
+    if($BUILD_INFO.gcc_location ){        
+        $BUILD_INFO.compiler='gcc'
+    }
+    if($BUILD_INFO.compiler -eq 'auto'){
+        $BUILD_INFO.compiler=detect_compiler  vs2013 vs2015 gcc
+    }else{
+        $BUILD_INFO.compiler=detect_compiler  $BUILD_INFO.compiler
+    }
+    if($BUILD_INFO.arch -eq 'auto'){
+        args_not_null_empty_undefined HOST_PROCESSOR
+        $BUILD_INFO.arch=$HOST_PROCESSOR
+    }else{
+        $script:HOST_PROCESSOR=$BUILD_INFO.arch
+    }
+    make_msvc_env
 }
-function check_g2015(){
+# 调用 vcvarsall.bat 创建msvc编译环境
+# 当编译器选择 gcc 不会执行该函数
+# 通过 $MSVC_ENV_MAKED 变量保证 该函数只会被调用一次
+function make_msvc_env(){
+    args_not_null_empty_undefined BUILD_INFO
+    if(!$script:MSVC_ENV_MAKED -and $BUILD_INFO.compiler -match 'vs(\d+)'){
+        $vnum=$Matches[1]        
+        $cmd="""$(Join-Path $($BUILD_INFO.msvc_root) -ChildPath vcvarsall.bat)"""
+        if($BUILD_INFO.arch -eq 'x86'){
+            $cmd+=' x86'
+        }else{
+            $cmd+=' x86_amd64'
+        }        
+        cmd /c "$cmd &set" |
+        foreach {
+          if ($_ -match "=") {
+            $v = $_.split("=")
+            Set-Item -Force -Path "ENV:$($v[0])"  -Value "$($v[1])"
+          }
+        }       
+        write-host "Visual Studio $vnum Command Prompt variables set." -ForegroundColor Yellow        
+        $script:MSVC_ENV_MAKED=$true
+    }
 }
-function check_gcc(){
+# 用命令行输入的参数初始化 $BUILD_INFO 变量 [PSObject]
+$BUILD_INFO=New-Object PSObject -Property @{
+    compiler=$compiler
+    arch=$arch
+    env_vs2015='VS140COMNTOOLS'
+    env_vs2013='VS120COMNTOOLS'
+    msvc_root=""
+    gcc_location=$gcc
+    gcc_version=""
+    gcc_c_compiler=""
+    gcc_cxx_compiler=""
+    # cmake 参数定义
+    cmake_vars_define=""
+    make_exe=""
+}
+function build_flags(){
+pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $GFLAGS_INFO.folder)
+remove_if_exist CMakeCache.txt
+remove_if_exist CMakeFiles
+&$($CMAKE_INFO.exe) . $BUILD_INFO.cmake_vars_define -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX=$($GFLAGS_INFO.install_path()) \
+	-DBUILD_SHARED_LIBS=off \
+	-DBUILD_STATIC_LIBS=on \
+	-DBUILD_gflags_LIB=on \
+	-DINSTALL_STATIC_LIBS=on \
+	-DINSTALL_SHARED_LIBS=off \
+	-DREGISTER_INSTALL_PREFIX=off
+exit_on_error
+remove_if_exist $GFLAGS_INFO.install_path()
+make clean
+make -j $MAKE_JOBS install
+exit_on_error
+popd
+}
 
-}
+init_build_info
+$BUILD_INFO
+
