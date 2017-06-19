@@ -7,6 +7,16 @@ param(
 [switch]$help
 )
 . "./build_vars.ps1"
+# 调用where 的搜索路径中查找 $who 指定的可执行文件,
+# 如果找到则返回第一个结果
+# 如果没找到返回空 
+function where_first($who){
+    args_not_null_empty_undefined who    
+    cmd /c "where $who >nul 2>nul"
+    if($?){
+        $(cmd /c "where $who")[0]
+    }
+}
 # 根据提供的编译器类型列表，按顺序在系统中侦测安装的编译器，
 # 如果找到就返回找到的编译类型名,
 # 如果没有找到任何一种编译器则报错退出
@@ -32,17 +42,23 @@ function detect_compiler(){
             if($BUILD_INFO.gcc_location){
                 $gcc_exe=Join-Path $BUILD_INFO.gcc_location -ChildPath $gcc_exe
             }else{
-                $gcc_exe=$(cmd /c where $gcc_exe)
+                $gcc_exe=where_first $gcc_exe
                 if(!$gcc_exe){continue}
             }            
             if(Test-Path $gcc_exe -PathType Leaf){
-                $BUILD_INFO.gcc_version=&$gcc_exe -dumpversion
+                $BUILD_INFO.gcc_version=cmd /c "$gcc_exe -dumpversion 2>&1" 
                 exit_on_error 
                 $BUILD_INFO.gcc_location= (Get-Item $gcc_exe).Directory
                 $BUILD_INFO.gcc_c_compiler=$gcc_exe
                 $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath 'g++.exe'
-                $BUILD_INFO.cmake_vars_define="-DCMAKE_C_COMPILER:FILEPATH=$($BUILD_INFO.gcc_c_compiler) -DCMAKE_CXX_COMPILER:FILEPATH=$($BUILD_INFO.gcc_cxx_compiler) -DCMAKE_BUILD_TYPE:STRING=RELEASE"
-                $BUILD_INFO.make_exe="$(Join-Path $BUILD_INFO.gcc_location -ChildPath 'make.exe') -j $MAKE_JOBS"
+                $BUILD_INFO.cmake_vars_define="-G ""MinGW Makefiles"" -DCMAKE_C_COMPILER:FILEPATH=$($BUILD_INFO.gcc_c_compiler) -DCMAKE_CXX_COMPILER:FILEPATH=$($BUILD_INFO.gcc_cxx_compiler) -DCMAKE_BUILD_TYPE:STRING=RELEASE"
+                $BUILD_INFO.make_exe=(ls $BUILD_INFO.gcc_location -Filter *make*.exe).Name
+                args_not_null_empty_undefined MAKE_JOBS
+                $BUILD_INFO.make_exe_option="-j $MAKE_JOBS"
+                if(!((Get-Item $gcc_exe).FullName -eq "$(where_first gcc)")){
+                    # $BUILD_INFO.gcc_location 加入搜索路径
+                    $env:path="$($BUILD_INFO.gcc_location);$env:path"
+                }
                 return $arg
             }
             
@@ -53,7 +69,7 @@ function detect_compiler(){
     echo "(没有找到指定的任何一种编译器，你确定安装了么?)not found compiler:$args"
     exit -1
 }
-
+# 初始化 $BUILD_INFO 编译参数配置对象
 function init_build_info(){
     if($BUILD_INFO.gcc_location ){        
         $BUILD_INFO.compiler='gcc'
@@ -88,7 +104,7 @@ function make_msvc_env(){
         foreach {
           if ($_ -match "=") {
             $v = $_.split("=")
-            Set-Item -Force -Path "ENV:$($v[0])"  -Value "$($v[1])"
+            Set-Item -Force -Path "env:$($v[0])"  -Value "$($v[1])"
           }
         }       
         write-host "Visual Studio $vnum Command Prompt variables set." -ForegroundColor Yellow        
@@ -109,26 +125,31 @@ $BUILD_INFO=New-Object PSObject -Property @{
     # cmake 参数定义
     cmake_vars_define=""
     make_exe=""
+    make_exe_option=""
 }
+
+# 静态编译 gflags 源码
 function build_flags(){
-pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $GFLAGS_INFO.folder)
-remove_if_exist CMakeCache.txt
-remove_if_exist CMakeFiles
-&$($CMAKE_INFO.exe) . $BUILD_INFO.cmake_vars_define -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX=$($GFLAGS_INFO.install_path()) \
-	-DBUILD_SHARED_LIBS=off \
-	-DBUILD_STATIC_LIBS=on \
-	-DBUILD_gflags_LIB=on \
-	-DINSTALL_STATIC_LIBS=on \
-	-DINSTALL_SHARED_LIBS=off \
-	-DREGISTER_INSTALL_PREFIX=off
-exit_on_error
-remove_if_exist $GFLAGS_INFO.install_path()
-make clean
-make -j $MAKE_JOBS install
-exit_on_error
-popd
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $GFLAGS_INFO.folder)
+    remove_if_exist CMakeCache.txt
+    remove_if_exist CMakeFiles
+    cmd /c "$($CMAKE_INFO.exe) . $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=$($GFLAGS_INFO.install_path()) ^
+	    -DBUILD_SHARED_LIBS=off ^
+	    -DBUILD_STATIC_LIBS=on ^
+	    -DBUILD_gflags_LIB=on ^
+	    -DINSTALL_STATIC_LIBS=on ^
+	    -DINSTALL_SHARED_LIBS=off ^
+	    -DREGISTER_INSTALL_PREFIX=off 2>&1"
+    exit_on_error
+    remove_if_exist $GFLAGS_INFO.install_path()
+    cmd /c "$($BUILD_INFO.make_exe) clean 2>&1"
+    exit_on_error
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
 }
 
 init_build_info
 $BUILD_INFO
 
+build_flags

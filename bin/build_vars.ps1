@@ -2,7 +2,7 @@
 . "./build_funs.ps1"
 # 获取CPU逻辑核心总数
 function get_logic_core_count(){
-    $cpu=get-wmiobject win32_processor
+    $cpu=Get-CimInstance win32_processor
     return @($cpu).count*$cpu.NumberOfLogicalProcessors
 }
 function get_os_processor(){
