@@ -227,7 +227,7 @@ if($help){
     exit 0
 }
 echo $names| foreach {    
-    if( $_ -and ! (Test-Path function:"fetch_$($_.ToUpper())") ){
+    if( $_ -and ! (Test-Path function:"fetch_$($_.ToLower())") ){
         echo "(不识别的项目名称)unknow project name:$_"
         print_help
         exit -1
@@ -237,9 +237,10 @@ echo $names| foreach {
 mkdir_if_not_exist $PACKAGE_ROOT
 mkdir_if_not_exist $SOURCE_ROOT
 mkdir_if_not_exist $TOOLS_ROOT
+
 # 顺序下载解压 $names 中指定的项目
 echo $names| foreach {  
     if( $_){
-        &"fetch_$($_.ToUpper())"  
+        &"fetch_$($_.ToLower())"  
     }    
 }
