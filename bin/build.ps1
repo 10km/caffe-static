@@ -6,6 +6,33 @@ param(
 [string]$gcc=$DEFAULT_GCC,
 [switch]$help
 )
+# 用命令行输入的参数初始化 $BUILD_INFO 变量 [PSObject]
+$BUILD_INFO=New-Object PSObject -Property @{
+    # 编译器类型 vs2013|vs2015|gcc
+    compiler=$compiler
+    # cpu体系 x86|x86_64
+    arch=$arch
+    # vs2015 环境变量
+    env_vs2015='VS140COMNTOOLS'
+    # vs2013 环境变量
+    env_vs2013='VS120COMNTOOLS'
+    # msvc安装路径 如:"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC"
+    msvc_root=""
+    # gcc安装路径 如:P:\MinGW\mingw64\bin
+    gcc_location=$gcc
+    # gcc版本号
+    gcc_version=""
+    # gcc 编译器全路径 如 P:\MinGW\mingw64\bin\gcc.exe
+    gcc_c_compiler=""
+    # g++ 编译器全路径 如 P:\MinGW\mingw64\bin\g++.exe
+    gcc_cxx_compiler=""
+    # cmake 参数定义
+    cmake_vars_define=""
+    # make 工具文件名,msvc为nmake,mingw为make 
+    make_exe=""
+    # make 工具编译时的默认选项
+    make_exe_option=""
+}
 . "./build_vars.ps1"
 # 调用 where 在搜索路径中查找 $who 指定的可执行文件,
 # 如果找到则返回第一个结果
@@ -112,33 +139,7 @@ function make_msvc_env(){
         $script:MSVC_ENV_MAKED=$true
     }
 }
-# 用命令行输入的参数初始化 $BUILD_INFO 变量 [PSObject]
-$BUILD_INFO=New-Object PSObject -Property @{
-    # 编译器类型 vs2013|vs2015|gcc
-    compiler=$compiler
-    # cpu体系 x86|x86_64
-    arch=$arch
-    # vs2015 环境变量
-    env_vs2015='VS140COMNTOOLS'
-    # vs2013 环境变量
-    env_vs2013='VS120COMNTOOLS'
-    # msvc安装路径 如:"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC"
-    msvc_root=""
-    # gcc安装路径 如:P:\MinGW\mingw64\bin
-    gcc_location=$gcc
-    # gcc版本号
-    gcc_version=""
-    # gcc 编译器全路径 如 P:\MinGW\mingw64\bin\gcc.exe
-    gcc_c_compiler=""
-    # g++ 编译器全路径 如 P:\MinGW\mingw64\bin\g++.exe
-    gcc_cxx_compiler=""
-    # cmake 参数定义
-    cmake_vars_define=""
-    # make 工具文件名,msvc为nmake,mingw为make 
-    make_exe=""
-    # make 工具编译时的默认选项
-    make_exe_option=""
-}
+
 # 将分行的命令字符串去掉分行符组合成一行
 # 分行符 可以为 '^' '\' 结尾
 function combine_multi_line([string]$cmd){
@@ -212,15 +213,20 @@ function build_boost(){
     # 指定依赖库bzip2的位置,编译iostreams库时需要
     #export LIBRARY_PATH=$BZIP2_INSTALL_PATH/lib:$LIBRARY_PATH
     #export CPLUS_INCLUDE_PATH=$BZIP2_INSTALL_PATH/include:$CPLUS_INCLUDE_PATH
-    # 使用 gcc 编译器时指定编译器路径
+
+    # user-config.jam 位于boost 根目录下
+    $pwd=$(cmd /c cd)
+    $jam=Join-Path $pwd -ChildPath user-config.jam
     if($BUILD_INFO.compiler -eq 'gcc'){
-        $env:BOOST_BUILD_PATH=$(cmd /c cd)
-        echo "using gcc : $($BUILD_INFO.gcc_version) : $($BUILD_INFO.gcc_cxx_compiler.Replace('\','/') ) ;" | Out-File (Join-Path $env:BOOST_BUILD_PATH -ChildPath user-config.jam) -Encoding ASCII -Force
-        cat (Join-Path $env:BOOST_BUILD_PATH -ChildPath user-config.jam)
+        # 使用 gcc 编译器时用 user-config.jam 指定编译器路径
+        # Out-File 默认生成的文件有bom头，所以生成 user-config.jam 时要指定 ASCII 编码(无bom)，否则会编译时读取文件报错：syntax error at EOF
+        $env:BOOST_BUILD_PATH=$pwd
+        echo "using gcc : $($BUILD_INFO.gcc_version) : $($BUILD_INFO.gcc_cxx_compiler.Replace('\','/') ) ;" | Out-File "$jam" -Encoding ASCII -Force
+        cat "$jam"
         $toolset='toolset=gcc'
     }else{
         $env:BOOST_BUILD_PATH=''
-        remove_if_exist (Join-Path $(cmd /c cd) -ChildPath user-config.jam)
+        remove_if_exist "$jam"
         $toolset='toolset=msvc'
     }
     # 所有库列表
@@ -237,13 +243,14 @@ function build_boost(){
     cmd /c "b2 --clean 2>&1"
     exit_on_error
     remove_if_exist "$install_path"    
-    # --prefix指定安装位置
+    # --prefix 指定安装位置
     # --debug-configuration 编译时显示加载的配置信息
-    # -q参数指示出错就停止编译
+    # -q 参数指示出错就停止编译
     # link=static 只编译静态库
     # --with-<library> 编译安装指定的库<library>
-    Write-Host "b2 compiling..." -ForegroundColor Yellow
-    $cmd=combine_multi_line "b2 --prefix=$install_path -q -d+3 --debug-configuration $toolset link=static  install 
+    # -a 全部重新编译
+    Write-Host "boost compiling..." -ForegroundColor Yellow
+    $cmd=combine_multi_line "b2 --prefix=$install_path -a -q -d+3 --debug-configuration $toolset link=static  install 
         --with-system
         --with-thread
         --with-filesystem
