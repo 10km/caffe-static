@@ -90,7 +90,7 @@ function clean_folder([string]$folder){
     if(Test-Path $folder){
     	del -Recurse -Force $folder\*
     }else{
-        mkdir $folder
+        $null=mkdir $folder
     }
 	exit_on_error 
 }
