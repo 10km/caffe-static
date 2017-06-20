@@ -79,9 +79,16 @@ function detect_compiler(){
                 $BUILD_INFO.gcc_location= (Get-Item $gcc_exe).Directory
                 $BUILD_INFO.gcc_c_compiler=$gcc_exe
                 $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath 'g++.exe'
-                $BUILD_INFO.cmake_vars_define="-G ""MinGW Makefiles"" -DCMAKE_C_COMPILER:FILEPATH=$($BUILD_INFO.gcc_c_compiler) -DCMAKE_CXX_COMPILER:FILEPATH=$($BUILD_INFO.gcc_cxx_compiler) -DCMAKE_BUILD_TYPE:STRING=RELEASE"
+                $BUILD_INFO.cmake_vars_define="-G ""MinGW Makefiles"" -DCMAKE_C_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_c_compiler)"" -DCMAKE_CXX_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_cxx_compiler)"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"
                 #$BUILD_INFO.make_exe=(ls $BUILD_INFO.gcc_location -Filter *make*.exe).Name
-                $BUILD_INFO.make_exe='make'
+                $find=(ls $BUILD_INFO.gcc_location -Filter *make.exe).BaseName
+                if(!$find.Count){
+                    throw "这是什么鬼?没有找到make工具啊(not found make tools)"
+                }elseif($find.Count -eq 1){
+                    $BUILD_INFO.make_exe=$find
+                }else{
+                    $BUILD_INFO.make_exe=$find[0]
+                }                
                 args_not_null_empty_undefined MAKE_JOBS
                 $BUILD_INFO.make_exe_option="-j $MAKE_JOBS"
                 if(!((Get-Item $gcc_exe).FullName -eq "$(where_first gcc)")){
@@ -193,7 +200,7 @@ function build_bzip2(){
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     clean_folder build.gcc
     pushd build.gcc
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
@@ -259,10 +266,158 @@ function build_boost(){
     exit_on_error
     popd
 }
+# 静态编译 protobuf 源码
+function build_protobuf(){
+    $project=$PROTOBUF_INFO
+    $install_path=$project.install_path()
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    clean_folder build.gcc
+    pushd build.gcc
+    if($BUILD_INFO.compiler -eq 'gcc'){
+        $cmake_exe_linker_flags='-DCMAKE_EXE_LINKER_FLAGS="-static -static-libstdc++ -static-libgcc"'
+    }
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) ../cmake $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    	    -Dprotobuf_BUILD_TESTS=off 
+			-Dprotobuf_BUILD_SHARED_LIBS=off
+			$cmake_exe_linker_flags 2>&1" 
+    cmd /c $cmd
+    exit_on_error
+    remove_if_exist "$install_path"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+    rm  build.gcc -Force -Recurse
+    popd
+}
+# 静态编译 hdf5 源码
+function build_hdf5(){
+    $project=$HDF5_INFO
+    $install_path=$project.install_path()
+    pushd $([io.path]::Combine($SOURCE_ROOT,$project.folder,$project.folder))
+    clean_folder build.gcc
+    pushd build.gcc
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+        -DBUILD_SHARED_LIBS=off 
+		-DBUILD_TESTING=off 
+		-DHDF5_BUILD_FORTRAN=off 
+		-DHDF5_BUILD_EXAMPLES=off 
+		-DHDF5_BUILD_TOOLS=off 
+		-DHDF5_DISABLE_COMPILER_WARNINGS=on 
+		-DSKIP_HDF5_FORTRAN_SHARED=off 2>&1" 
+    cmd /c $cmd
+    exit_on_error
+    remove_if_exist "$install_path"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+    rm  build.gcc -Force -Recurse
+    popd
+}
+# 静态编译 snappy 源码
+function build_snappy(){
+    $project=$SNAPPY_INFO
+    $install_path=$project.install_path()
+    $gflags_DIR=[io.path]::combine($($GFLAGS_INFO.install_path()),'cmake')
+    exit_if_not_exist "$gflags_DIR"  -type Container -msg "not found $gflags_DIR,please build $($GFLAGS_INFO.prefix)"
+
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    clean_folder build.gcc
+    pushd build.gcc
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+        -DGflags_DIR=$gflags_DIR 
+        -DBUILD_SHARED_LIBS=off 2>&1" 
+    cmd /c $cmd
+    exit_on_error
+    remove_if_exist "$install_path"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+    rm  build.gcc -Force -Recurse
+    popd
+}
+# 静态编译 opencv 源码
+function build_opencv(){
+    $project=$BZIP2_INFO
+    $install_path=$project.install_path()
+    # 如果不编译 FFMPEG 不需要 bzip2
+    #bzip2_libraries=$BZIP2_INSTALL_PATH/lib/libbz2.a
+    #exit_if_not_exist $bzip2_libraries "not found $bzip2_libraries,please build $BZIP2_PREFIX"
+
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    clean_folder build.gcc
+    pushd build.gcc
+    # 如果不编译 FFMPEG , cmake时不需要指定 BZIP2_LIBRARIES
+	#	-DBZIP2_LIBRARIES=$BZIP2_INSTALL_PATH/lib/libbz2.a 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+			-DBUILD_DOCS=off 
+			-DBUILD_SHARED_LIBS=off 
+			-DBUILD_PACKAGE=on 
+			-DBUILD_PERF_TESTS=off 
+			-DBUILD_FAT_JAVA_LIB=off 
+			-DBUILD_TESTS=off 
+			-DBUILD_TIFF=on 
+			-DBUILD_JASPER=on 
+			-DBUILD_JPEG=on 
+			-DBUILD_OPENEXR=on 
+			-DBUILD_PNG=on 
+			-DBUILD_ZLIB=on 
+			-DBUILD_opencv_apps=off 
+			-DBUILD_opencv_calib3d=off 
+			-DBUILD_opencv_contrib=off 
+			-DBUILD_opencv_features2d=off 
+			-DBUILD_opencv_flann=off 
+			-DBUILD_opencv_gpu=off 
+			-DBUILD_opencv_java=off 
+			-DBUILD_opencv_legacy=off 
+			-DBUILD_opencv_ml=off 
+			-DBUILD_opencv_nonfree=off 
+			-DBUILD_opencv_objdetect=off 
+			-DBUILD_opencv_ocl=off 
+			-DBUILD_opencv_photo=off 
+			-DBUILD_opencv_python=off 
+			-DBUILD_opencv_stitching=off 
+			-DBUILD_opencv_superres=off 
+			-DBUILD_opencv_ts=off 
+			-DBUILD_opencv_video=off 
+			-DBUILD_opencv_videostab=off 
+			-DBUILD_opencv_world=off 
+			-DBUILD_opencv_lengcy=off 
+			-DWITH_JASPER=on 
+			-DWITH_JPEG=on 
+			-DWITH_1394=off 
+			-DWITH_OPENEXR=on 
+			-DWITH_PNG=on 
+			-DWITH_TIFF=on 
+			-DWITH_1394=off 
+			-DWITH_EIGEN=off 
+			-DWITH_FFMPEG=off 
+			-DWITH_GIGEAPI=off 
+			-DWITH_GSTREAMER=off 
+			-DWITH_GTK=off 
+			-DWITH_PVAPI=off 
+			-DWITH_V4L=off 
+			-DWITH_LIBV4L=off 
+			-DWITH_CUDA=off 
+			-DWITH_CUFFT=off 
+			-DWITH_OPENCL=off 
+			-DWITH_OPENCLAMDBLAS=off 
+			-DWITH_OPENCLAMDFFT=off 2>&1" 
+    cmd /c $cmd
+    exit_on_error
+    remove_if_exist "$install_path"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+    rm  build.gcc -Force -Recurse
+    popd
+}
 init_build_info
 $BUILD_INFO
 
 #build_gflags
 #build_glog
 #build_bzip2
-build_boost
+#build_boost
+#build_protobuf
+#build_hdf5
+build_snappy
