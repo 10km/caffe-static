@@ -33,5 +33,5 @@ remove_if_exist $install_path
 # -q参数指示出错就停止编译
 # link=static 只编译静态库
 ./b2 --prefix=$install_path -q --debug-configuration link=static install
-
+exit_on_error
 popd
