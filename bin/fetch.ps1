@@ -153,7 +153,7 @@ function modify_bzip2_1_0_6(){
     if(! (Get-Content $bzip2_makefile|Select-String  -Pattern '^\s*CFLAGS\s*=\s*' | Select-String -Pattern '-fPIC') ){
         echo "修改 $bzip2_makefile,在编译选项中增加 -fPIC 参数"
         (Get-Content $bzip2_makefile) -replace '(^\s*CFLAGS\s*=)(.*$)','#modified by guyadong,add -fPIC
-$1-fPIC $2' | Out-File $bzip2_makefile
+$1-fPIC $2' | Out-File $bzip2_makefile -Encoding ascii -Force
         exit_on_error
     }	
 }
@@ -162,7 +162,7 @@ function modify_snappy(){
 	$snappy_cmake=[io.path]::combine($SOURCE_ROOT,$SNAPPY_INFO.folder,"CMakeLists.txt")
 	echo "修改 $snappy_cmake ,删除 SHARED 参数"
     (Get-Content $snappy_cmake) -replace '(^\s*ADD_LIBRARY\s*\(\s*snappy\s*)SHARED','#modified by guyadong,remove SHARED
-$1'| Out-File $snappy_cmake
+$1'| Out-File $snappy_cmake -Encoding ascii -Force
 	exit_on_error
 }
 ######################################################
