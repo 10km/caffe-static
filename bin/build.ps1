@@ -219,6 +219,8 @@ function build_boost(){
         cat (Join-Path $env:BOOST_BUILD_PATH -ChildPath user-config.jam)
         $toolset='toolset=gcc'
     }else{
+        $env:BOOST_BUILD_PATH=''
+        remove_if_exist (Join-Path $(cmd /c cd) -ChildPath user-config.jam)
         $toolset='toolset=msvc'
     }
     # 所有库列表
