@@ -139,30 +139,121 @@ $BUILD_INFO=New-Object PSObject -Property @{
     # make 工具编译时的默认选项
     make_exe_option=""
 }
-
+# 将分行的命令字符串去掉分行符组合成一行
+# 分行符 可以为 '^' '\' 结尾
+function combine_multi_line([string]$cmd){
+    args_not_null_empty_undefined cmd
+    $cmd -replace '\s*[\^\\]?\s*\r\n\s*',' ' 
+}
 # 静态编译 gflags 源码
-function build_flags(){
+function build_gflags(){
     $project=$GFLAGS_INFO
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     remove_if_exist CMakeCache.txt
     remove_if_exist CMakeFiles
-    cmd /c "$($CMAKE_INFO.exe) . $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=$($project.install_path()) ^
-	    -DBUILD_SHARED_LIBS=off ^
-	    -DBUILD_STATIC_LIBS=on ^
-	    -DBUILD_gflags_LIB=on ^
-	    -DINSTALL_STATIC_LIBS=on ^
-	    -DINSTALL_SHARED_LIBS=off ^
-	    -DREGISTER_INSTALL_PREFIX=off 2>&1"
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$($project.install_path())"" 
+        -DBUILD_SHARED_LIBS=off         
+	    -DBUILD_STATIC_LIBS=on 
+	    -DBUILD_gflags_LIB=on 
+        -DREGISTER_INSTALL_PREFIX=off 2>&1" 
+    cmd /c $cmd
     exit_on_error
-    remove_if_exist $project.install_path()
+    remove_if_exist "$project.install_path()"
     cmd /c "$($BUILD_INFO.make_exe) clean 2>&1"
     exit_on_error
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
     popd
 }
-
+# 静态编译 glog 源码
+function build_glog(){
+    $project=$GLOG_INFO
+    $gflags_DIR=[io.path]::combine($($GFLAGS_INFO.install_path()),'cmake')
+    exit_if_not_exist "$gflags_DIR"  -type Container -msg "not found $gflags_DIR,please build $($GFLAGS_INFO.prefix)"
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    remove_if_exist CMakeCache.txt
+    remove_if_exist CMakeFiles
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=$($project.install_path()) 
+        -Dgflags_DIR=$gflags_DIR 
+	    -DBUILD_SHARED_LIBS=off 2>&1"
+    cmd /c $cmd
+    exit_on_error
+    remove_if_exist "$project.install_path()"
+    cmd /c "$($BUILD_INFO.make_exe) clean 2>&1"
+    exit_on_error
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+}
+# cmake静态编译 bzip2 1.0.5源码
+function build_bzip2(){
+    $project=$BZIP2_INFO
+    $install_path=$project.install_path()
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    clean_folder build.gcc
+    pushd build.gcc
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+        -DBUILD_SHARED_LIBS=off 2>&1" 
+    cmd /c $cmd
+    exit_on_error
+    remove_if_exist "$install_path"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+    rm  build.gcc -Force -Recurse
+    popd
+}
+# 静态编译 boost 源码
+function build_boost(){
+    $project=$BOOST_INFO
+    $install_path=$project.install_path()
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    #exit_if_not_exist $BZIP2_INSTALL_PATH "not found $BZIP2_INSTALL_PATH,please build $BZIP2_PREFIX"
+    # 指定依赖库bzip2的位置,编译iostreams库时需要
+    #export LIBRARY_PATH=$BZIP2_INSTALL_PATH/lib:$LIBRARY_PATH
+    #export CPLUS_INCLUDE_PATH=$BZIP2_INSTALL_PATH/include:$CPLUS_INCLUDE_PATH
+    # 使用 gcc 编译器时指定编译器路径
+    if($BUILD_INFO.compiler -eq 'gcc'){
+        $env:BOOST_BUILD_PATH=$(cmd /c cd)
+        echo "using gcc : $($BUILD_INFO.gcc_version) : $($BUILD_INFO.gcc_cxx_compiler.Replace('\','/') ) ;" | Out-File (Join-Path $env:BOOST_BUILD_PATH -ChildPath user-config.jam) -Encoding ASCII -Force
+        cat (Join-Path $env:BOOST_BUILD_PATH -ChildPath user-config.jam)
+        $toolset='toolset=gcc'
+    }else{
+        $toolset='toolset=msvc'
+    }
+    # 所有库列表
+    # atomic chrono container context coroutine date_time exception filesystem 
+    # graph graph_parallel iostreams locale log math mpi program_options python 
+    # random regex serialization signals system test thread timer wave
+    # --without-libraries指定不编译的库
+    #./bootstrap.sh --without-libraries=python,mpi,graph,graph_parallel,wave
+    # --with-libraries指定编译的库
+    Write-Host "runing bootstrap..." -ForegroundColor Yellow
+    cmd /c "bootstrap"
+    exit_on_error
+    Write-Host "b2 clean..." -ForegroundColor Yellow
+    cmd /c "b2 --clean 2>&1"
+    exit_on_error
+    remove_if_exist "$install_path"    
+    # --prefix指定安装位置
+    # --debug-configuration 编译时显示加载的配置信息
+    # -q参数指示出错就停止编译
+    # link=static 只编译静态库
+    # --with-<library> 编译安装指定的库<library>
+    Write-Host "b2 compiling..." -ForegroundColor Yellow
+    $cmd=combine_multi_line "b2 --prefix=$install_path -q -d+3 --debug-configuration $toolset link=static  install 
+        --with-system
+        --with-thread
+        --with-filesystem
+        --with-regex 2>&1"
+    cmd /c $cmd 
+    exit_on_error
+    popd
+}
 init_build_info
 $BUILD_INFO
 
-build_flags
+#build_gflags
+#build_glog
+#build_bzip2
+build_boost
