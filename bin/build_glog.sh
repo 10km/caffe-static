@@ -14,7 +14,7 @@ pushd $SOURCE_ROOT/$GLOG_FOLDER
 remove_if_exist CMakeCache.txt
 $CMAKE_EXE . $CMAKE_VARS_DEFINE -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX=$install_path \
 	-Dgflags_DIR=$gflags_DIR \
-#	-DBUILD_SHARED_LIBS=on
+	-DBUILD_SHARED_LIBS=off
 
 exit_on_error
 remove_if_exist $install_path
