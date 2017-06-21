@@ -297,6 +297,14 @@ function build_boost(){
     cmd /c "b2 --clean 2>&1"
     exit_on_error
     remove_if_exist "$install_path"    
+    if($BUILD_INFO.arch -eq 'x86_64'){
+        $address_model='address-model=64'
+    }
+    if($BUILD_INFO.compiler -eq 'vs2013'){
+        $toolset='--toolset=msvc-12.0'
+    }elseif($BUILD_INFO.compiler -eq 'vs2015'){
+        $toolset='--toolset=msvc-14.0'
+    }
     # --prefix 指定安装位置
     # --debug-configuration 编译时显示加载的配置信息
     # -q 参数指示出错就停止编译
@@ -304,7 +312,8 @@ function build_boost(){
     # --with-<library> 编译安装指定的库<library>
     # -a 全部重新编译
     Write-Host "boost compiling..." -ForegroundColor Yellow
-    $cmd=combine_multi_line "b2 --prefix=$install_path -a -q -d+3 --debug-configuration $toolset link=static  install 
+    $cmd=combine_multi_line "b2 --prefix=$install_path $address_model $toolset -a -q -d+3 --debug-configuration $toolset link=static  install 
+        --with-date_time
         --with-system
         --with-thread
         --with-filesystem
@@ -468,6 +477,46 @@ function build_opencv(){
     rm  build.gcc -Force -Recurse
     popd
 }
+# cmake静态编译 leveldb(zeux)源码
+function build_leveldb_zeux(){
+    $project=$LEVELDB_INFO
+    $install_path=$project.install_path()
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    clean_folder build.gcc
+    pushd build.gcc
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
+        -DBUILD_SHARED_LIBS=off 2>&1" 
+    cmd /c $cmd
+    exit_on_error
+    remove_if_exist "$install_path"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+    rm  build.gcc -Force -Recurse
+    popd
+}
+# cmake静态编译 leveldb(bureau14)源码
+function build_leveldb_bureau14(){
+    $project=$LEVELDB_INFO
+    $install_path=$project.install_path()
+    $boost_root=$BOOST_INFO.install_path()
+    exit_if_not_exist "$boost_root"  -type Container -msg "not found $boost_root,please build $($BOOST_INFO.prefix)"
+
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    clean_folder build.gcc
+    pushd build.gcc
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
+        -DBOOST_ROOT=$boost_root
+        -DBUILD_SHARED_LIBS=off 2>&1" 
+    cmd /c $cmd
+    exit_on_error
+    remove_if_exist "$install_path"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+    rm  build.gcc -Force -Recurse
+    popd
+}
 init_build_info
 $BUILD_INFO
 
@@ -479,4 +528,4 @@ $BUILD_INFO
 #build_hdf5
 #build_snappy
 #build_opencv
-
+build_leveldb_bureau14

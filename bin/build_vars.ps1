@@ -95,13 +95,25 @@ $GFLAGS_INFO= create_project_info @{
 	package_prefix="v"
 }
 
-$LEVELDB_INFO= create_project_info @{
+$leveldb_google_hash= @{
 	prefix="leveldb"
 	version="1.18"
 	md5="06e9f4984e40ccf27af366d5bec0580a"
 	owner="google"
 	package_prefix="v"
 }
+$leveldb_zeux_hash= @{
+	prefix="leveldb"
+	version="master"
+	owner="zeux"
+}
+$leveldb_bureau14_hash= @{
+	prefix="leveldb"
+	version="master"
+	owner="bureau14"
+}
+
+$LEVELDB_INFO= create_project_info $leveldb_bureau14_hash
 
 $SNAPPY_INFO= create_project_info @{
 	prefix="snappy"
