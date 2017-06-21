@@ -46,7 +46,7 @@ function args_not_null_empty_undefined(){
 # 上一条命令执行出错则中止脚本执行,并输出调用堆栈信息
 function exit_on_error(){
 	if ( ! $? ){
-		echo "exit for error:$1 " 
+		Write-Host "exit for error:$args "  -ForegroundColor Yellow
         call_stack -index 2
 		exit -1
 	}
