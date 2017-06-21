@@ -162,7 +162,11 @@ function modify_snappy(){
 	$snappy_cmake=[io.path]::combine($SOURCE_ROOT,$SNAPPY_INFO.folder,"CMakeLists.txt")
 	echo "修改 $snappy_cmake ,删除 SHARED 参数"
     (Get-Content $snappy_cmake) -replace '(^\s*ADD_LIBRARY\s*\(\s*snappy\s*)SHARED','#modified by guyadong,remove SHARED
-$1'| Out-File $snappy_cmake -Encoding ascii -Force
+$1'| Out-File $snappy_cmake -Encoding ascii -Force    
+    $snappy_test_cc=[io.path]::combine($SOURCE_ROOT,$SNAPPY_INFO.folder,"snappy-test.cc")
+    echo "修改 $snappy_test_cc ,解决msvc下编译错误"
+    (Get-Content $snappy_test_cc -Raw ) -replace '(.*)(?!\()\s*(std::max)\s*(?!\))(.*)','// modified by guyadong
+$1($2)$3' | Out-File $snappy_test_cc -Encoding ascii -Force
 	exit_on_error
 }
 ######################################################
