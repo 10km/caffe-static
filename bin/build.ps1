@@ -29,9 +29,9 @@ $BUILD_INFO=New-Object PSObject -Property @{
     # cmake 参数定义
     cmake_vars_define=""
     # c编译器通用选项 (CMAKE_C_FLAGS)  参见 https://cmake.org/cmake/help/v3.8/variable/CMAKE_LANG_FLAGS.html
-    cmake_c_flags=""
+    c_flags=""
     # c++编译器通用选项 (CMAKE_CXX_FLAGS),同上
-    cmake_cxx_flags=""
+    cxx_flags=""
     # make 工具文件名,msvc为nmake,mingw为make 
     make_exe=""
     # make 工具编译时的默认选项
@@ -41,11 +41,11 @@ $BUILD_INFO=New-Object PSObject -Property @{
 Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name make_cmake_vars_define -Value {
         param([string]$c_flags,[string]$cxx_flags)
         $vars=$this.cmake_vars_define
-        if($this.cmake_c_flags -or $c_flags){
-            $vars+=" -DCMAKE_C_FLAGS=""$($this.cmake_c_flags) $c_flags"""
+        if($this.c_flags -or $c_flags){
+            $vars+=" -DCMAKE_C_FLAGS=""$($this.c_flags) $c_flags"""
         }
-        if($this.cmake_cxx_flags -or $cxx_flags){
-            $vars+=" -DCMAKE_CXX_FLAGS=""$($this.cmake_cxx_flags) $cxx_flags"""
+        if($this.cxx_flags -or $cxx_flags){
+            $vars+=" -DCMAKE_CXX_FLAGS=""$($this.cxx_flags) $cxx_flags"""
         }
         $vars
     }
@@ -60,6 +60,28 @@ function where_first($who){
         $w=$(cmd /c "where $who")
         if($w.Count -gt 1){$w[0]}else{$w}
     }
+}
+
+# 测试 gcc 编译器($gcc_compiler)是否能生成$arch指定的代码(32/64位)
+# 如果不能，则报错退出
+function test_gcc_compiler_capacity([string]$gcc_compiler,[ValidateSet('x86','x86_64')][string]$arch){
+    args_not_null_empty_undefined arch gcc_compiler
+    # 检查是否为 gcc 编译器
+    cmd /c "$gcc_compiler -dumpversion >nul 2>nul"
+    exit_on_error "$gcc_compiler is not gcc compiler"
+    if($arch -eq 'x86'){
+        $c_flags='-m32'
+    }elseif($arch -eq 'x86_64'){
+        $c_flags='-m64'
+    }
+    $test=Join-Path $env:TEMP -ChildPath 'test-m32-m64-enable'
+    # 在系统 temp 文件夹下生成一个临时 .c 文件
+    echo "int main(){return 0;}`n" |Out-File "$test.c" -Encoding ascii -Force
+    # 调用指定的编译器在命令行编译 .c 文件
+    cmd /c "$gcc_compiler $test.c $c_flags -o $test >nul 2>nul"    
+    exit_on_error "指定的编译器不能生成 $arch 代码($gcc_compiler can't build $arch code)"
+    # 清除临时文件
+    del "$test*" -Force
 }
 # 根据提供的编译器类型列表，按顺序在系统中侦测安装的编译器，
 # 如果找到就返回找到的编译类型名,
@@ -138,11 +160,12 @@ function init_build_info(){
     }
     if($BUILD_INFO.compiler -eq 'gcc'){
         if($BUILD_INFO.arch -eq 'x86'){
-            $BUILD_INFO.cmake_c_flags=$BUILD_INFO.cmake_cxx_flags='-m32'
+            $BUILD_INFO.c_flags=$BUILD_INFO.cxx_flags='-m32'
         }elseif($BUILD_INFO.arch -eq 'x86_64'){
-            $BUILD_INFO.cmake_c_flags=$BUILD_INFO.cmake_cxx_flags='-m64'
+            $BUILD_INFO.c_flags=$BUILD_INFO.cxx_flags='-m64'
         }
-    }
+        test_gcc_compiler_capacity -gcc_compiler $BUILD_INFO.gcc_c_compiler -arch $BUILD_INFO.arch
+    }    
     make_msvc_env
 }
 # 调用 vcvarsall.bat 创建msvc编译环境
@@ -360,7 +383,7 @@ function build_snappy(){
 }
 # 静态编译 opencv 源码
 function build_opencv(){
-    $project=$BZIP2_INFO
+    $project=$OPENCV_INFO
     $install_path=$project.install_path()
     # 如果不编译 FFMPEG 不需要 bzip2
     #bzip2_libraries=$BZIP2_INSTALL_PATH/lib/libbz2.a
@@ -369,9 +392,16 @@ function build_opencv(){
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     clean_folder build.gcc
     pushd build.gcc
+    if($BUILD_INFO.compiler -match 'vs\d+'){
+        $build_with_static_crt='-DBUILD_WITH_STATIC_CRT=on'
+    }elseif($BUILD_INFO.compiler -eq 'gcc'){
+        $build_fat_java_lib='-DBUILD_FAT_JAVA_LIB=off'
+    }
     # 如果不编译 FFMPEG , cmake时不需要指定 BZIP2_LIBRARIES
 	#	-DBZIP2_LIBRARIES=$BZIP2_INSTALL_PATH/lib/libbz2.a 
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+            $build_with_static_crt
+            $build_fat_java_lib
 			-DBUILD_DOCS=off 
 			-DBUILD_SHARED_LIBS=off 
 			-DBUILD_PACKAGE=on 
@@ -405,6 +435,7 @@ function build_opencv(){
 			-DBUILD_opencv_videostab=off 
 			-DBUILD_opencv_world=off 
 			-DBUILD_opencv_lengcy=off 
+            -DWITH_DSHOW=off
 			-DWITH_JASPER=on 
 			-DWITH_JPEG=on 
 			-DWITH_1394=off 
@@ -415,16 +446,19 @@ function build_opencv(){
 			-DWITH_EIGEN=off 
 			-DWITH_FFMPEG=off 
 			-DWITH_GIGEAPI=off 
-			-DWITH_GSTREAMER=off 
-			-DWITH_GTK=off 
+			-DWITH_GSTREAMER_0_10=off 
 			-DWITH_PVAPI=off 
-			-DWITH_V4L=off 
-			-DWITH_LIBV4L=off 
 			-DWITH_CUDA=off 
 			-DWITH_CUFFT=off 
 			-DWITH_OPENCL=off 
 			-DWITH_OPENCLAMDBLAS=off 
-			-DWITH_OPENCLAMDFFT=off 2>&1" 
+			-DWITH_OPENCLAMDFFT=off 
+            -DWITH_QT=off
+            -DWITH_VFW=off
+            -DWITH_VTK=off
+            -DWITH_XIMEA=off
+            -DWITH_WIN32UI=off 
+            2>&1" 
     cmd /c $cmd
     exit_on_error
     remove_if_exist "$install_path"
@@ -443,4 +477,6 @@ $BUILD_INFO
 #build_boost
 #build_protobuf
 #build_hdf5
-build_snappy
+#build_snappy
+#build_opencv
+
