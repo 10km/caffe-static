@@ -478,24 +478,6 @@ function build_opencv(){
     rm  build.gcc -Force -Recurse
     popd
 }
-# cmakeæ≤Ã¨±‡“Î leveldb(zeux)‘¥¬Î
-function build_leveldb_zeux(){
-    $project=$LEVELDB_INFO
-    $install_path=$project.install_path()
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    clean_folder build.gcc
-    pushd build.gcc
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
-        -DBUILD_SHARED_LIBS=off 2>&1" 
-    cmd /c $cmd
-    exit_on_error
-    remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
-    exit_on_error
-    popd
-    rm  build.gcc -Force -Recurse
-    popd
-}
 # cmakeæ≤Ã¨±‡“Î leveldb(bureau14)‘¥¬Î
 function build_leveldb_bureau14(){
     $project=$LEVELDB_INFO
@@ -529,4 +511,4 @@ $BUILD_INFO
 #build_hdf5
 #build_snappy
 #build_opencv
-#build_leveldb_bureau14
+build_leveldb_bureau14
