@@ -158,6 +158,14 @@ $1-fPIC $2' | Out-File $bzip2_makefile -Encoding ascii -Force
     }	
 }
 #################################################################
+function modify_bzip2_1_0_5(){
+	$bzip2_cmake=[io.path]::combine($SOURCE_ROOT,$BZIP2_INFO.folder,"CMakeLists.txt")
+	echo "修改 $bzip2_cmake ,删除 SHARED 参数"
+    (Get-Content $bzip2_cmake) -replace '(^\s*ADD_LIBRARY\s*\(\s*bz2\s*)SHARED','#modified by guyadong,remove SHARED
+$1'| Out-File $bzip2_cmake -Encoding ascii -Force    
+    exit_on_error
+}
+#################################################################
 function modify_snappy(){
 	$snappy_cmake=[io.path]::combine($SOURCE_ROOT,$SNAPPY_INFO.folder,"CMakeLists.txt")
 	echo "修改 $snappy_cmake ,删除 SHARED 参数"
@@ -176,18 +184,30 @@ function modify_ssd(){
     cp -Path (Join-Path -Path $PATCH_ROOT -ChildPath $SSD_INFO.folder) -Destination $SOURCE_ROOT -Recurse -Force -Verbose
 	exit_on_error 
 }
+######################################################
+function modify_leveldb(){
+    $leveldb_src=Join-Path -Path $SOURCE_ROOT -ChildPath $SSD_INFO.folder
+    $patch_folder=Join-Path -Path $PATCH_ROOT -ChildPath $LEVELDB_INFO.folder
+    $cmake_file='CMakeLists.txt'
+	$leveldb_cmake=Join-Path -Path $leveldb_src -ChildPath $cmake_file
+    if((Test-Path $patch_folder -PathType Container) -and (Test-Path (Join-Path -Path $leveldb_src -ChildPath $cmake_file) -PathType Leaf)){
+	    echo "(复制修改的补丁文件)copy patch file to $leveldb_src"	
+        cp -Path $patch_folder -Destination $SOURCE_ROOT -Force -Verbose -Recurse
+	    exit_on_error
+    }
+}
 
 function fetch_bzip2_1_0_5(){ fetch_from_github $BZIP2_INFO; }
 function fetch_protobuf(){ fetch_from_github $PROTOBUF_INFO ; }
 function fetch_gflags(){ fetch_from_github $GFLAGS_INFO ; }
 function fetch_glog(){ fetch_from_github $GLOG_INFO ; }
-function fetch_leveldb(){ fetch_from_github $LEVELDB_INFO ; }
+function fetch_leveldb(){ fetch_from_github $LEVELDB_INFO ; modify_leveldb }
 function fetch_lmdb(){ fetch_from_github $LMDB_INFO ; }
 function fetch_snappy(){ fetch_from_github $SNAPPY_INFO; modify_snappy ; }
 function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; }
 function fetch_ssd(){ fetch_from_github $SSD_INFO ; modify_ssd; }
 function fetch_opencv(){ fetch_from_github $OPENCV_INFO; }
-function fetch_bzip2(){ fetch_bzip2_1_0_5 ; }
+function fetch_bzip2(){ fetch_bzip2_1_0_5 ; modify_bzip2_1_0_5 }
 
 # 输出帮助信息
 function print_help(){
