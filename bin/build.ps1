@@ -28,11 +28,27 @@ $BUILD_INFO=New-Object PSObject -Property @{
     gcc_cxx_compiler=""
     # cmake 参数定义
     cmake_vars_define=""
+    # c编译器通用选项 (CMAKE_C_FLAGS)  参见 https://cmake.org/cmake/help/v3.8/variable/CMAKE_LANG_FLAGS.html
+    cmake_c_flags=""
+    # c++编译器通用选项 (CMAKE_CXX_FLAGS),同上
+    cmake_cxx_flags=""
     # make 工具文件名,msvc为nmake,mingw为make 
     make_exe=""
     # make 工具编译时的默认选项
     make_exe_option=""
 }
+# 生成调用 cmake 时的默认命令行参数
+Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name make_cmake_vars_define -Value {
+        param([string]$c_flags,[string]$cxx_flags)
+        $vars=$this.cmake_vars_define
+        if($this.cmake_c_flags -or $c_flags){
+            $vars+=" -DCMAKE_C_FLAGS=""$($this.cmake_c_flags) $c_flags"""
+        }
+        if($this.cmake_cxx_flags -or $cxx_flags){
+            $vars+=" -DCMAKE_CXX_FLAGS=""$($this.cmake_cxx_flags) $cxx_flags"""
+        }
+        $vars
+    }
 . "./build_vars.ps1"
 # 调用 where 在搜索路径中查找 $who 指定的可执行文件,
 # 如果找到则返回第一个结果
@@ -80,7 +96,8 @@ function detect_compiler(){
                 $BUILD_INFO.gcc_c_compiler=$gcc_exe
                 $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath 'g++.exe'
                 $BUILD_INFO.cmake_vars_define="-G ""MinGW Makefiles"" -DCMAKE_C_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_c_compiler)"" -DCMAKE_CXX_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_cxx_compiler)"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"
-                #$BUILD_INFO.make_exe=(ls $BUILD_INFO.gcc_location -Filter *make*.exe).Name
+
+                # 寻找 mingw32 中的 make.exe，一般名为 mingw32-make
                 $find=(ls $BUILD_INFO.gcc_location -Filter *make.exe).BaseName
                 if(!$find.Count){
                     throw "这是什么鬼?没有找到make工具啊(not found make tools)"
@@ -118,6 +135,13 @@ function init_build_info(){
     if($BUILD_INFO.arch -eq 'auto'){
         args_not_null_empty_undefined HOST_PROCESSOR
         $BUILD_INFO.arch=$HOST_PROCESSOR
+    }
+    if($BUILD_INFO.compiler -eq 'gcc'){
+        if($BUILD_INFO.arch -eq 'x86'){
+            $BUILD_INFO.cmake_c_flags=$BUILD_INFO.cmake_cxx_flags='-m32'
+        }elseif($BUILD_INFO.arch -eq 'x86_64'){
+            $BUILD_INFO.cmake_c_flags=$BUILD_INFO.cmake_cxx_flags='-m64'
+        }
     }
     make_msvc_env
 }
@@ -159,7 +183,7 @@ function build_gflags(){
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     remove_if_exist CMakeCache.txt
     remove_if_exist CMakeFiles
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$($project.install_path())"" 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$($project.install_path())"" 
         -DBUILD_SHARED_LIBS=off         
 	    -DBUILD_STATIC_LIBS=on 
 	    -DBUILD_gflags_LIB=on 
@@ -181,7 +205,7 @@ function build_glog(){
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     remove_if_exist CMakeCache.txt
     remove_if_exist CMakeFiles
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=$($project.install_path()) 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=$($project.install_path()) 
         -Dgflags_DIR=$gflags_DIR 
 	    -DBUILD_SHARED_LIBS=off 2>&1"
     cmd /c $cmd
@@ -200,7 +224,7 @@ function build_bzip2(){
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     clean_folder build.gcc
     pushd build.gcc
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path""
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
@@ -276,7 +300,7 @@ function build_protobuf(){
     if($BUILD_INFO.compiler -eq 'gcc'){
         $cmake_exe_linker_flags='-DCMAKE_EXE_LINKER_FLAGS="-static -static-libstdc++ -static-libgcc"'
     }
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) ../cmake $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) ../cmake $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
     	    -Dprotobuf_BUILD_TESTS=off 
 			-Dprotobuf_BUILD_SHARED_LIBS=off
 			$cmake_exe_linker_flags 2>&1" 
@@ -296,7 +320,7 @@ function build_hdf5(){
     pushd $([io.path]::Combine($SOURCE_ROOT,$project.folder,$project.folder))
     clean_folder build.gcc
     pushd build.gcc
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DBUILD_SHARED_LIBS=off 
 		-DBUILD_TESTING=off 
 		-DHDF5_BUILD_FORTRAN=off 
@@ -319,11 +343,10 @@ function build_snappy(){
     $install_path=$project.install_path()
     $gflags_DIR=[io.path]::combine($($GFLAGS_INFO.install_path()),'cmake')
     exit_if_not_exist "$gflags_DIR"  -type Container -msg "not found $gflags_DIR,please build $($GFLAGS_INFO.prefix)"
-
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     clean_folder build.gcc
     pushd build.gcc
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DGflags_DIR=$gflags_DIR 
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
@@ -348,7 +371,7 @@ function build_opencv(){
     pushd build.gcc
     # 如果不编译 FFMPEG , cmake时不需要指定 BZIP2_LIBRARIES
 	#	-DBZIP2_LIBRARIES=$BZIP2_INSTALL_PATH/lib/libbz2.a 
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.cmake_vars_define) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
 			-DBUILD_DOCS=off 
 			-DBUILD_SHARED_LIBS=off 
 			-DBUILD_PACKAGE=on 
