@@ -79,7 +79,7 @@ function exit_if_not_exist([string]$file,[string]$msg,[Microsoft.PowerShell.Comm
 		$error_msg=$msg
 	}
 	if(!$(exist_file $file -type $type)  ){
-        echo $error_msg
+        Write-Host $error_msg -ForegroundColor Yellow 
         call_stack
         exit -1
     }
