@@ -32,6 +32,8 @@ $BUILD_INFO=New-Object PSObject -Property @{
     c_flags=""
     # c++编译器通用选项 (CMAKE_CXX_FLAGS),同上
     cxx_flags=""
+    # 可执行程序(exe)连接选项(CMAKE_EXE_LINKER_FLAGS) 参见 https://cmake.org/cmake/help/v3.8/variable/CMAKE_EXE_LINKER_FLAGS.html
+    exe_linker_flags=""
     # make 工具文件名,msvc为nmake,mingw为make 
     make_exe=""
     # make 工具编译时的默认选项
@@ -39,13 +41,16 @@ $BUILD_INFO=New-Object PSObject -Property @{
 }
 # 生成调用 cmake 时的默认命令行参数
 Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name make_cmake_vars_define -Value {
-        param([string]$c_flags,[string]$cxx_flags)
+        param([string]$c_flags,[string]$cxx_flags,[string]$exe_linker_flags)
         $vars=$this.cmake_vars_define
         if($this.c_flags -or $c_flags){
             $vars+=" -DCMAKE_C_FLAGS=""$($this.c_flags) $c_flags"""
         }
         if($this.cxx_flags -or $cxx_flags){
             $vars+=" -DCMAKE_CXX_FLAGS=""$($this.cxx_flags) $cxx_flags"""
+        }
+        if($this.exe_linker_flags -or $exe_linker_flags){
+            $vars+=" -DCMAKE_EXE_LINKER_FLAGS=""$($this.exe_linker_flags) $exe_linker_flags"""
         }
         $vars
     }
@@ -118,7 +123,7 @@ function detect_compiler(){
                 $BUILD_INFO.gcc_c_compiler=$gcc_exe
                 $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath 'g++.exe'
                 $BUILD_INFO.cmake_vars_define="-G ""MinGW Makefiles"" -DCMAKE_C_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_c_compiler)"" -DCMAKE_CXX_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_cxx_compiler)"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"
-
+                $BUILD_INFO.exe_linker_flags='-static -static-libstdc++ -static-libgcc'
                 # 寻找 mingw32 中的 make.exe，一般名为 mingw32-make
                 $find=(ls $BUILD_INFO.gcc_location -Filter *make.exe).BaseName
                 if(!$find.Count){
@@ -329,13 +334,9 @@ function build_protobuf(){
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     clean_folder build.gcc
     pushd build.gcc
-    if($BUILD_INFO.compiler -eq 'gcc'){
-        $cmake_exe_linker_flags='-DCMAKE_EXE_LINKER_FLAGS="-static -static-libstdc++ -static-libgcc"'
-    }
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) ../cmake $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
     	    -Dprotobuf_BUILD_TESTS=off 
-			-Dprotobuf_BUILD_SHARED_LIBS=off
-			$cmake_exe_linker_flags 2>&1" 
+			-Dprotobuf_BUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
     remove_if_exist "$install_path"
@@ -528,4 +529,4 @@ $BUILD_INFO
 #build_hdf5
 #build_snappy
 #build_opencv
-build_leveldb_bureau14
+#build_leveldb_bureau14
