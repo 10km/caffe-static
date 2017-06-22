@@ -505,17 +505,37 @@ function build_openblas(){
     $project=$OPENBLAS_INFO
     $install_path=$project.install_path()
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    clean_folder build.gcc
-    pushd build.gcc
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    #clean_folder build.gcc
+    #pushd build.gcc
+    remove_if_exist CMakeCache.txt
+    remove_if_exist CMakeFiles
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
 			-DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option)  2>&1"
     exit_on_error
+    #popd
+    #rm  build.gcc -Force -Recurse
     popd
-    rm  build.gcc -Force -Recurse
+}
+# cmake¾²Ì¬±àÒë lmdb Ô´Âë
+function build_lmdb(){
+    $project=$LMDB_INFO
+    $install_path=$project.install_path()
+    pushd ([io.path]::Combine($SOURCE_ROOT,$project.folder,'libraries','liblmdb'))
+    clean_folder build.gcc
+    pushd build.gcc
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
+        -DBUILD_SHARED_LIBS=off 2>&1" 
+    cmd /c $cmd
+    exit_on_error
+    remove_if_exist "$install_path"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+    #rm  build.gcc -Force -Recurse
     popd
 }
 init_build_info
@@ -530,4 +550,5 @@ $BUILD_INFO
 #build_snappy
 #build_opencv
 #build_leveldb_bureau14
-build_openblas
+#build_openblas
+build_lmdb
