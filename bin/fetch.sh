@@ -19,10 +19,14 @@ need_download(){
 		if [ -f $1 ]; then
 			echo "File already exists. Checking md5..."
 			local os=`uname -s`
-			if [ "$os" = "Linux" ]; then
+			if [ $(which md5sum) ]
+			then 
 				local checksum=`md5sum $1 | awk '{ print $1 }'`
 			elif [ "$os" = "Darwin" ]; then
 				local checksum=`cat $1 | md5`
+			else 
+				echo "not found md5sum"; 
+				exit -1
 			fi
 			exit_on_error
 			if [ "$checksum" = "$2" ]; then
