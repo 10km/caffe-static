@@ -198,7 +198,19 @@ function make_msvc_env(){
         $script:MSVC_ENV_MAKED=$true
     }
 }
-
+# 检查是否有安装 MSYS2,perl 如果没有安装则退出
+function exit_if_no_msys2_perl(){
+    $installed_msys2=check_msys2
+    if(!$installed_msys2.name.count){
+        throw "没有安装MSYS2,不能编译OpenBLAS,MSYS2 not installed,please install,run : ./fetch.ps1 msys2"
+    }
+    $MSYS2_INFO.install_path=$installed_msys2[0].Location
+    $installed_perl=check_perl
+    if(!$installed_perl.name.count){
+        throw "没有安装perl,不能编译OpenBLAS,perl not installed,please install,run : ./fetch.ps1 perl"
+    }
+    $PERL_INFO.install_path=$installed_perl[0].Location
+}
 # 将分行的命令字符串去掉分行符组合成一行
 # 分行符 可以为 '^' '\' 结尾
 function combine_multi_line([string]$cmd){
@@ -500,25 +512,26 @@ function build_leveldb_bureau14(){
     rm  build.gcc -Force -Recurse
     popd
 }
-# 静态编译 OpenBLAS 源码
+# 静态编译 OpenBLAS 源码,在 MSYS2 中编译，需要 perl msys2 支持
 function build_openblas(){
     $project=$OPENBLAS_INFO
-    $install_path=$project.install_path()
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    #clean_folder build.gcc
-    #pushd build.gcc
-    remove_if_exist CMakeCache.txt
-    remove_if_exist CMakeFiles
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
-			-DBUILD_SHARED_LIBS=off 2>&1" 
+    exit_if_no_msys2_perl
+    if($BUILD_INFO.arch -eq 'x86'){
+        $mingw=$MINGW32_INFO
+        exit_if_not_exist $($mingw.root) -type Container -msg "(没有安装 mingw32 编译器),mingw32 not installed,run ./fetch.ps1 mingw32 to install it "
+    }else{
+        $mingw=$MINGW64_INFO
+        exit_if_not_exist $($mingw.root) -type Container -msg "(没有安装 mingw64 编译器),mingw64 not installed,run ./fetch.ps1 mingw64 to install it "
+    }
+    $src_root=Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder
+    $msys2bash=[io.path]::Combine($MSYS2_INFO.install_path,'usr','bin','bash')
+    $perlbin=unix_path([io.path]::Combine($PERL_INFO.install_path,'bin'))
+    $mingwbin=unix_path((Join-Path $mingw.root,'bin'))
+    $install_path=unix_path($project.install_path())
+    $bashcmd="export PATH=${perlbin}:${mingwbin}:`$PATH;make clean;make $($BUILD_INFO.make_exe_option) NOFORTRAN=1 NO_LAPACKE=1 NO_SHARED=1;make install PREFIX=$install_path NO_LAPACKE=1 NO_SHARED=1"
+    $cmd="$msys2bash -where $src_root -l -c ""$bashcmd="" 2>&1"
     cmd /c $cmd
     exit_on_error
-    remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option)  2>&1"
-    exit_on_error
-    #popd
-    #rm  build.gcc -Force -Recurse
-    popd
 }
 # cmake静态编译 lmdb 源码
 function build_lmdb(){
@@ -537,12 +550,11 @@ function build_lmdb(){
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
     popd
-    #rm  build.gcc -Force -Recurse
+    rm  build.gcc -Force -Recurse
     popd
 }
 init_build_info
 $BUILD_INFO
-
 #build_gflags
 #build_glog
 #build_bzip2
