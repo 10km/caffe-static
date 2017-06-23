@@ -54,7 +54,7 @@ function need_download([string]$file,[string]$md5){
 	}
 }
 # 下载并解压指定的项目文件
-function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$SOURCE_ROOT,[string]$sourceRoot=$PACKAGE_ROOT,[string]$md5Name,[string]$versionName){
+function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$SOURCE_ROOT,[string]$sourceRoot=$PACKAGE_ROOT,[string]$md5Name,[string]$versionName,[switch]$noUnpack){
 	args_not_null_empty_undefined info uri
     if($md5Name){
         $md5=$info."$md5Name"
@@ -92,9 +92,11 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
 		Invoke-WebRequest -Uri $uri -OutFile $package_path 
 		exit_on_error
 	}
-	remove_if_exist (Join-Path $targetRoot $info.folder)
-	echo "(解压缩)extracting file from $package_path"
-	unpack $package_path -targetFolder $targetRoot	
+    if(!$noUnpack){        
+	    remove_if_exist (Join-Path $targetRoot $info.folder)
+	    Write-Host "(解压缩)extracting file from $package_path" -ForegroundColor Yellow
+	    unpack $package_path -targetFolder $targetRoot	
+    }
 }
 # 从github上下载源码
 # 如果本地不存在指定的zip包，或$md5为空或$md5校验码不匹配则从github下载
@@ -140,6 +142,35 @@ function fetch_cmake(){
     $uri= "https://cmake.org/files/v3.8/$($CMAKE_INFO.folder)$($CMAKE_INFO.package_suffix)"
     download_and_extract -info $CMAKE_INFO -uri $uri -targetRoot $TOOLS_ROOT	
 }
+# 下载 mingw32 (MinGW 32位编译器) 压缩包解压到 $TOOLS_ROOT
+function fetch_mingw32(){
+    $poject=$MINGW32_INFO
+    $uri= "https://nchc.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/$($poject.version)/threads-win32/dwarf/i686-$($poject.version)-release-win32-dwarf-rt_v5-rev0.7z"
+    download_and_extract -info $poject -uri $uri -targetRoot $TOOLS_ROOT	
+}
+# 下载 mingw64 (MinGW 64位编译器) 压缩包解压到 $TOOLS_ROOT
+function fetch_mingw64(){
+    $poject=$MINGW64_INFO
+    $uri= "https://nchc.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win64/Personal%20Builds/mingw-builds/$($poject.version)/threads-win32/sjlj/x86_64-$($poject.version)-release-win32-sjlj-rt_v5-rev0.7z"
+    download_and_extract -info $poject -uri $uri -targetRoot $TOOLS_ROOT	
+}
+# 下载 msys2 压缩包并安装
+function fetch_msys2(){
+    # 检查是否安装了 msys2，如果没安装就下载安装
+    $installed_msys2= check_msys2
+    if(!$installed_msys2.count){
+        $package="$($MSYS2_INFO.folder)$($MSYS2_INFO.package_suffix)"
+        $uri="http://repo.msys2.org/distrib/i686/$package"
+        download_and_extract -info $MSYS2_INFO -uri $uri -noUnpack        
+        &"$(Join-Path $PACKAGE_ROOT -ChildPath $package)"
+        exit_on_error
+        if(!$(check_msys2).count){
+            exit -1
+        }
+    }
+    $MSYS2_INFO.install_path=$installed_msys2[0].Location
+}
+
 # 下载 bzip2 1.0.6 
 function fetch_bzip2_1_0_6(){
     $uri="http://www.bzip.org/$($BZIP2_1_0_6_INFO.version)/$($BZIP2_1_0_6_INFO.folder)$($BZIP2_1_0_6_INFO.package_suffix)"
@@ -222,7 +253,7 @@ function print_help(){
 	    echo "用法: $my_name [-names] [项目名称列表,...] [可选项...] 
 下载并解压指定的项目，如果没有指定项目名称，则下载解压所有项目
     -n,-names       项目名称列表(逗号分隔,忽略大小写)
-                 可选的项目名称: $all_names 
+                    可选的项目名称: $all_names 
 选项:
 	-v,-verbose     显示详细信息
 	-f,-force       强制下载没有指定版本号的项目
@@ -234,7 +265,7 @@ function print_help(){
 download and extract projects specified by project name,
 all projects fetched without argument
     -n,-names       prject names(split by comma,ignore case)
-                 optional project names: $all_names 
+                    optional project names: $all_names 
 
 options:
 	-v,-verbose     list verbosely
@@ -245,7 +276,7 @@ author: guyadong@gdface.net
     }
 }
 # 所有项目列表
-$all_names="cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd"
+$all_names="msys2 mingw32 mingw64 cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd"
 # 当前脚本名称
 $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载

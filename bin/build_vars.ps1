@@ -211,6 +211,32 @@ $CMAKE_INFO= create_project_info $cmake_hash_windows -no_install_path
 Add-Member -InputObject $CMAKE_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $CMAKE_INFO.folder -Path $TOOLS_ROOT )
 # 添加exe属性
 Add-Member -InputObject $CMAKE_INFO -NotePropertyName exe -NotePropertyValue ([io.path]::combine($CMAKE_INFO.root,"bin","cmake"))
+
+$MSYS2_INFO= create_project_info @{
+    prefix="msys2"
+    version="i686-20161025"
+    md5="1bca8df8383f31ab24cded366c290339"
+    package_suffix=".exe"
+    install_path=""
+} -no_install_path
+$MINGW32_INFO= create_project_info @{
+    prefix="mingw32"
+    version="5.4.0"
+    md5="ba77e5c6edff0ef12ee2c581388e2396"
+    folder="mingw32"
+    package_suffix=".7z"
+} -no_install_path
+$MINGW64_INFO= create_project_info @{
+    prefix="mingw64"
+    version="5.4.0"
+    md5="5dbea964148e9b272c66531ca1bf04d9"
+    folder="mingw64"
+    package_suffix=".7z"
+} -no_install_path
+# 添加root属性
+Add-Member -InputObject $MINGW32_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MINGW32_INFO.folder -Path $TOOLS_ROOT )
+Add-Member -InputObject $MINGW64_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MINGW64_INFO.folder -Path $TOOLS_ROOT )
+
 # 指定命令解压工具
 # 这里指定的exe，是支持命令行运行的版本,
 # 比如7z的 GUI版本的可执行文件是 7zfm.exe,命令行版本则是7z.exe

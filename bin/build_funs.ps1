@@ -54,6 +54,7 @@ function exit_on_error(){
 # 如果文件/文件夹存在则删除,删除失败则中止脚本
 function remove_if_exist([string]$file){
 	if(Test-Path $file){
+        Write-Host "(删除)deleting $file" -ForegroundColor Yellow
 		del -Force -Recurse  $file
 		if( ! $? ){
             call_stack 
@@ -231,4 +232,49 @@ function unpack([string]$package,[string]$targetFolder){
         # 调用 unpack_(haozip|7z)函数解压
         &$fun $exe $package $targetFolder
     #}
+}
+function get_installed_softwares
+{
+    #
+    # Read registry key as product entity.
+    #
+    function ConvertTo-ProductEntity
+    {
+        param([Microsoft.Win32.RegistryKey]$RegKey)
+        $product = '' | select Name,Publisher,Version,Location
+        $product.Name =  $_.GetValue("DisplayName")
+        $product.Publisher = $_.GetValue("Publisher")
+        $product.Version =  $_.GetValue("DisplayVersion")
+        $product.Location= $_.GetValue("InstallLocation")
+        if( -not [string]::IsNullOrEmpty($product.Name)){
+            $product
+        }
+    }
+
+    $UninstallPaths = @(,
+    # For local machine.
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+    # For current user.
+    'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall')
+
+    # For 32bit softwares that were installed on 64bit operating system.
+    if([Environment]::Is64BitOperatingSystem) {
+        $UninstallPaths += 'HKLM:SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+    }
+    $UninstallPaths | foreach {
+        Get-ChildItem $_ | foreach {
+            ConvertTo-ProductEntity -RegKey $_
+        }
+    }
+}
+
+function check_msys2(){
+    (get_installed_softwares | Where-Object {$_.name -match 'msys2'})
+}
+function check_perl(){
+    (get_installed_softwares | Where-Object {$_.name -match 'perl'})
+}
+# 将 windows 路径转为 unix格式
+function unix_path($path){
+    ($path -replace '^([a-z]):','/$1').Replace('\','/')
 }
