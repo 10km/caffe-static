@@ -219,6 +219,13 @@ $MSYS2_INFO= create_project_info @{
     package_suffix=".exe"
     install_path=""
 } -no_install_path
+$PERL_INFO= create_project_info @{
+    prefix="ActivePerl"
+    version="5.24.1.2402"
+    md5="8df2caa80c1c07543172c47b9a9c35b5"
+    package_suffix=".exe"
+    install_path=""
+} -no_install_path
 $MINGW32_INFO= create_project_info @{
     prefix="mingw32"
     version="5.4.0"

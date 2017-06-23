@@ -158,7 +158,7 @@ function fetch_mingw64(){
 function fetch_msys2(){
     # 检查是否安装了 msys2，如果没安装就下载安装
     $installed_msys2= check_msys2
-    if(!$installed_msys2.count){
+    if(!$installed_msys2.name.count){
         $package="$($MSYS2_INFO.folder)$($MSYS2_INFO.package_suffix)"
         $uri="http://repo.msys2.org/distrib/i686/$package"
         download_and_extract -info $MSYS2_INFO -uri $uri -noUnpack        
@@ -169,6 +169,23 @@ function fetch_msys2(){
         }
     }
     $MSYS2_INFO.install_path=$installed_msys2[0].Location
+}
+# 下载 perl 压缩包并安装
+function fetch_perl(){
+    # 检查是否安装了 perl，如果没安装就下载安装
+    $installed_perl= check_perl
+    if(!$installed_perl.name.count){
+        $package="$($PERL_INFO.folder)-MSWin32-x86-64int-401627$($PERL_INFO.package_suffix)"
+        $uri="http://downloads.activestate.com/ActivePerl/releases/$($PERL_INFO.version)/$package"
+        download_and_extract -info $PERL_INFO -uri $uri -noUnpack        
+        &"$(Join-Path $PACKAGE_ROOT -ChildPath "$($PERL_INFO.folder)$($PERL_INFO.package_suffix)")"
+        exit_on_error
+        if(!$(check_perl).count){
+            Write-Host "fail to install perl" -ForegroundColor Yellow
+            exit -1
+        }
+    }
+    $PERL_INFO.install_path=$installed_perl[0].Location
 }
 
 # 下载 bzip2 1.0.6 
@@ -276,7 +293,7 @@ author: guyadong@gdface.net
     }
 }
 # 所有项目列表
-$all_names="msys2 mingw32 mingw64 cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd"
+$all_names="msys2 mingw32 mingw64 perl cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd"
 # 当前脚本名称
 $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载
