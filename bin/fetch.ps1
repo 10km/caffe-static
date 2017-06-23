@@ -91,6 +91,11 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 		Invoke-WebRequest -Uri $uri -OutFile $package_path 
 		exit_on_error
+        if( $md5 -and (md5sum $package_path) -ne $md5){
+            Write-Host "$uri `nfail to download,try to manually download  the url and save as $package_path" -ForegroundColor Yellow
+            Write-Host "下载失败,请尝试手工下载" -ForegroundColor Yellow
+            exit -1
+        }
 	}
     if(!$noUnpack){        
 	    remove_if_exist (Join-Path $targetRoot $info.folder)
@@ -155,12 +160,14 @@ function fetch_mingw64(){
     download_and_extract -info $poject -uri $uri -targetRoot $TOOLS_ROOT	
 }
 # 下载 msys2 压缩包并安装
+# 安装 msys2 后,在 msys2 中安装 perl
 function fetch_msys2(){
     # 检查是否安装了 msys2，如果没安装就下载安装
     $installed_msys2= check_msys2
-    if(!$installed_msys2.name.count){
+    if( ! $installed_msys2 ){
         $package="$($MSYS2_INFO.folder)$($MSYS2_INFO.package_suffix)"
-        $uri="http://repo.msys2.org/distrib/i686/$package"
+        $arch=$MSYS2_INFO.version.Split('-')[0]
+        $uri="http://repo.msys2.org/distrib/$arch/$package"
         download_and_extract -info $MSYS2_INFO -uri $uri -noUnpack        
         &"$(Join-Path $PACKAGE_ROOT -ChildPath $package)"
         exit_on_error
@@ -168,7 +175,10 @@ function fetch_msys2(){
             exit -1
         }
     }
-    $MSYS2_INFO.install_path=$installed_msys2[0].Location
+    # 如果没有安装 perl,在 MSYS2 中安装 perl
+    $bash=[io.path]::Combine($($installed_msys2.Location),'usr','bin','bash')
+    cmd /c "$bash -l -c `"if [ ! `$(which perl) ] ;then pacman -S --noconfirm perl ;fi`" 2>&1"
+    exit_on_error
 }
 # 下载 perl 压缩包并安装
 function fetch_perl(){
