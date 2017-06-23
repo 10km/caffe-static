@@ -212,13 +212,21 @@ Add-Member -InputObject $CMAKE_INFO -NotePropertyName root -NotePropertyValue (J
 # ÃÌº”exe Ù–‘
 Add-Member -InputObject $CMAKE_INFO -NotePropertyName exe -NotePropertyValue ([io.path]::combine($CMAKE_INFO.root,"bin","cmake"))
 
-$MSYS2_INFO= create_project_info @{
+$MSYS2_INFO_X86= create_project_info @{
     prefix="msys2"
     version="i686-20161025"
     md5="1bca8df8383f31ab24cded366c290339"
     package_suffix=".exe"
     install_path=""
 } -no_install_path
+$MSYS2_INFO_X86_64= create_project_info @{
+    prefix="msys2"
+    version="x86_64-20161025"
+    md5="0be5539d68dc5533ad387e06dfa08abf"
+    package_suffix=".exe"
+    install_path=""
+} -no_install_path
+$MSYS2_INFO= $MSYS2_INFO_X86 #Get-Variable "MSYS2_INFO_$HOST_PROCESSOR" -ValueOnly
 $PERL_INFO= create_project_info @{
     prefix="ActivePerl"
     version="5.24.1.2402"
