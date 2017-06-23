@@ -269,10 +269,21 @@ function get_installed_softwares
 }
 
 function check_msys2(){
-    (get_installed_softwares | Where-Object {$_.name -match 'msys2'})
+    get_installed_softwares | Where-Object {$_.name -match 'msys2'} | foreach{
+        if(Test-Path (Join-Path $_.Location,'bin' -ChildPath 'msys2_shell.cmd') -PathType Leaf){
+            if($MSYS2_INFO){
+                $MSYS2_INFO.install_path=$_.Location
+            }            
+            return $_
+        }
+    }
 }
 function check_perl(){
     (get_installed_softwares | Where-Object {$_.name -match 'perl'})
+}
+function find_installed_software($name){
+    args_not_null_empty_undefined name
+    (get_installed_softwares | Where-Object {$_.name -match $name})
 }
 # 将 windows 路径转为 unix格式
 function unix_path($path){
