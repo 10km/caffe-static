@@ -202,8 +202,8 @@ function make_msvc_env(){
 # 将分行的命令字符串去掉分行符组合成一行
 # 分行符 可以为 '^' '\' 结尾
 function combine_multi_line([string]$cmd){
-    args_not_null_empty_undefined cmd
-    $cmd -replace '\s*[\^\\]?\s*\r\n\s*',' ' 
+    args_not_null_empty_undefined cmd    
+    ($cmd -replace '\s*#.*\n',''  ) -replace '\s*[\^\\]?\s*\r\n\s*',' ' 
 }
 # 静态编译 gflags 源码
 function build_gflags(){
@@ -527,7 +527,9 @@ function build_lmdb(){
     pushd ([io.path]::Combine($SOURCE_ROOT,$project.folder,'libraries','liblmdb'))
     clean_folder build.gcc
     pushd build.gcc
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""  
+        -DCLOSE_WARNING=on
+        -DBUILD_TEST=off
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
