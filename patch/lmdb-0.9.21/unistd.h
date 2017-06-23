@@ -1,3 +1,8 @@
+/*
+ * Copied from StackOverflow:
+ *  http://stackoverflow.com/a/826027
+ */
+
 #ifndef _UNISTD_H
 #define _UNISTD_H    1
 
@@ -8,9 +13,8 @@
 
 #include <stdlib.h>
 #include <io.h>
-#include <getopt.h> /* getopt at: https://github.com/barrysteyn/scrypt-windows/tree/master/win */
+#include <getopt.h> /* getopt at: https://gist.github.com/ashelly/7776712*/
 #include <process.h> /* for getpid() and the exec..() family */
-#include <direct.h> /* for _getcwd() and _chdir() */
 
 #define srandom srand
 #define random rand
@@ -23,16 +27,8 @@
 #define F_OK    0       /* Test for existence.  */
 
 #define access _access
-#define dup2 _dup2
-#define execve _execve
 #define ftruncate _chsize
 #define unlink _unlink
-#define fileno _fileno
-#define getcwd _getcwd
-#define chdir _chdir
-#define isatty _isatty
-#define lseek _lseek
-/* read, write, and close are NOT being #defined here, because while there are file handle specific versions for Windows, they probably don't work for sockets. You need to look at your app and consider whether to call e.g. closesocket(). */
 
 #define ssize_t int
 
