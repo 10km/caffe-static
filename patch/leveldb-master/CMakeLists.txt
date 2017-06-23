@@ -181,6 +181,7 @@ install(TARGETS leveldb
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib)
 install(DIRECTORY include DESTINATION .)
+# end of modified by guyadong
 ##################################### TESTS #######################################
 # Every leveldb test file has to be compiled as an independant binary
 # because of the test framework used by leveldb.
@@ -229,6 +230,7 @@ function(LEVELDB_ADD_TEST TESTNAME TESTFILE)
     add_dependencies(RUN_LEVELDB_UNIT_TESTS leveldb_${TESTNAME}_test)
    	# modified by guyadong
     install(TARGETS leveldb_${TESTNAME}_test  RUNTIME DESTINATION bin)
+    # end of modified by guyadong
 endfunction(LEVELDB_ADD_TEST)
 
 LEVELDB_ADD_TEST(env          util/env_test.cc)
