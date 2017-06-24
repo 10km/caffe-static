@@ -114,8 +114,15 @@ function detect_compiler(){
                 $gcc_exe=Join-Path $BUILD_INFO.gcc_location -ChildPath $gcc_exe
             }else{
                 $gcc_exe=where_first $gcc_exe
-                if(!$gcc_exe){continue}
-            }            
+                if(!$gcc_exe){
+                    # 如果系统中没有检测到 gcc 编译器则使用自带的 mingw 编译器
+                    $mingw=$(if($BUILD_INFO.arch -eq 'x86'){$MINGW32_INFO}else{$MINGW64_INFO})                    
+                    if(!(Test-Path $mingw.root -PathType Container)){
+                        continue
+                    }
+                    $gcc_exe=Join-Path $mingw.root -ChildPath $gcc_exe
+                }
+            }  
             if(Test-Path $gcc_exe -PathType Leaf){
                 $BUILD_INFO.gcc_version=cmd /c "$gcc_exe -dumpversion 2>&1" 
                 exit_on_error 
@@ -151,6 +158,11 @@ function detect_compiler(){
 # 初始化 $BUILD_INFO 编译参数配置对象
 function init_build_info(){
     Write-Host "初始化编译参数..."  -ForegroundColor Yellow
+    # $BUILD_INFO.arch 为 auto时，设置为系统检查到的值
+    if($BUILD_INFO.arch -eq 'auto'){
+        args_not_null_empty_undefined HOST_PROCESSOR
+        $BUILD_INFO.arch=$HOST_PROCESSOR
+    }
     if($BUILD_INFO.gcc_location ){        
         $BUILD_INFO.compiler='gcc'
     }
@@ -159,10 +171,7 @@ function init_build_info(){
     }else{
         $BUILD_INFO.compiler=detect_compiler  $BUILD_INFO.compiler
     }
-    if($BUILD_INFO.arch -eq 'auto'){
-        args_not_null_empty_undefined HOST_PROCESSOR
-        $BUILD_INFO.arch=$HOST_PROCESSOR
-    }
+
     if($BUILD_INFO.compiler -eq 'gcc'){
         if($BUILD_INFO.arch -eq 'x86'){
             $BUILD_INFO.c_flags=$BUILD_INFO.cxx_flags='-m32'
@@ -198,14 +207,10 @@ function make_msvc_env(){
         $script:MSVC_ENV_MAKED=$true
     }
 }
-# 检查是否有安装 msys2 如果没有安装则退出
-function exit_if_no_msys2(){
-    if( ! (check_msys2) ){
-        throw "没有安装MSYS2,不能编译OpenBLAS,MSYS2 not installed,please install,run : ./fetch.ps1 msys2"
-    }
-}
+
 # 将分行的命令字符串去掉分行符组合成一行
 # 分行符 可以为 '^' '\' 结尾
+# 删除 #开头的注释行
 function combine_multi_line([string]$cmd){
     args_not_null_empty_undefined cmd    
     ($cmd -replace '\s*#.*\n',''  ) -replace '\s*[\^\\]?\s*\r\n\s*',' ' 
@@ -505,23 +510,54 @@ function build_leveldb_bureau14(){
     rm  build.gcc -Force -Recurse
     popd
 }
-# 静态编译 OpenBLAS 源码,在 MSYS2 中编译，需要 perl msys2 支持
+# 静态编译 OpenBLAS 源码,在 MSYS2 中编译，需要 msys2 支持
 function build_openblas(){
     $project=$OPENBLAS_INFO
-    exit_if_no_msys2
-    if($BUILD_INFO.arch -eq 'x86'){
-        $mingw=$MINGW32_INFO
-        exit_if_not_exist $($mingw.root) -type Container -msg "(没有安装 mingw32 编译器),mingw32 not installed,run ./fetch.ps1 mingw32 to install it "
-    }else{
-        $mingw=$MINGW64_INFO
-        exit_if_not_exist $($mingw.root) -type Container -msg "(没有安装 mingw64 编译器),mingw64 not installed,run ./fetch.ps1 mingw64 to install it "
+    # 检查是否有安装 msys2 如果没有安装则退出
+    if( ! $MSYS2_INSTALL_LOCATION ){
+        throw "没有安装MSYS2,不能编译OpenBLAS,MSYS2 not installed,please install,run : ./fetch.ps1 msys2"
     }
+    $BINARY=$(if($BUILD_INFO.arch -eq 'x86'){32}else{64})    
+    $mingw_make="mingw32-make"
+    if($BUILD_INFO.compiler -eq 'gcc'){
+        $mingw_bin=$BUILD_INFO.gcc_location
+        $mingw_make=$BUILD_INFO.make_exe
+        $mingw_version=$BUILD_INFO.gcc_version
+    }elseif($BUILD_INFO.arch -eq 'x86'){
+        $mingw_bin= Join-Path $MINGW32_INFO.root -ChildPath 'bin'
+        exit_if_not_exist $mingw_bin -type Container -msg "(没有安装 mingw32 编译器),mingw32 not installed,run ./fetch.ps1 mingw32 to install it "
+        $mingw_version=$MINGW32_INFO.version
+    }else{
+        $mingw_bin= Join-Path $MINGW64_INFO.root -ChildPath 'bin'
+        exit_if_not_exist $mingw_bin -type Container -msg "(没有安装 mingw64 编译器),mingw64 not installed,run ./fetch.ps1 mingw64 to install it "
+        $mingw_version=$MINGW64_INFO.version
+    }    
     $src_root=Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder
-    $msys2bash=[io.path]::Combine($MSYS2_INFO.install_path,'usr','bin','bash')
-    $mingwbin=unix_path((Join-Path $mingw.root,'bin'))
+    $msys2bash=[io.path]::Combine($MSYS2_INSTALL_LOCATION,'usr','bin','bash')
+    # 不用 msys2_shell.cmd 执行脚本是因为返回的exit code总是0，无法判断脚本是否正确执行
+    #$msys2bash=[io.path]::Combine($MSYS2_INSTALL_LOCATION,'msys2_shell.cmd')
     $install_path=unix_path($project.install_path())
-    $bashcmd="export PATH=${mingwbin}:`$PATH && make clean && make $($BUILD_INFO.make_exe_option) NOFORTRAN=1 NO_LAPACKE=1 NO_SHARED=1 && make install PREFIX=$install_path NO_LAPACKE=1 NO_SHARED=1"
-    $cmd="$msys2bash -where $src_root -l -c `"$bashcmd`" 2>&1"
+    args_not_null_empty_undefined MAKE_JOBS
+    remove_if_exist "$install_path"
+    # MSYS2 下的gcc 编译脚本 (bash)
+    # 任何一步出错即退出脚本 exit code = -1
+    # 每一行必须 ; 号结尾(最后一行除外)
+    # #号开头注释行会被 combine_multi_line 函数删除，不会出现在运行脚本中
+    $bashcmd="export PATH=$(unix_path($mingw_bin)):`$PATH ;
+        # 切换到 OpenBLAS 源码文件夹 
+        cd $(unix_path $src_root) ; 
+        # 先执行make clean
+        echo start make clean,please waiting...;
+        $mingw_make clean ;
+        if [ ! `$? ];then exit -1;fi; 
+        # BINARY用于指定编译32位还是64位代码 -j 选项用于指定多线程编译
+        $mingw_make -j $MAKE_JOBS BINARY=$BINARY NOFORTRAN=1 NO_LAPACKE=1 NO_SHARED=1 ; 
+        if [ ! `$? ];then exit -1;fi;
+        # 安装到 $install_path 指定的位置
+        $mingw_make install PREFIX=$install_path NO_LAPACKE=1 NO_SHARED=1"
+    $cmd=combine_multi_line "$msys2bash -l -c `"$bashcmd`" 2>&1"
+    #$cmd="$msys2bash -where $src_root -l -c `"$bashcmd`" 2>&1"
+    Write-Host "(OpenBLAS 编译中...)compiling OpenBLAS by MinGW $mingw_version ($mingw_bin)" -ForegroundColor Yellow
     cmd /c $cmd
     exit_on_error
 }
@@ -556,5 +592,5 @@ $BUILD_INFO
 #build_snappy
 #build_opencv
 #build_leveldb_bureau14
-#build_openblas
-build_lmdb
+build_openblas
+#build_lmdb
