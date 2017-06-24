@@ -1,3 +1,9 @@
+<#
+下载caffe-ssd及其所有依赖库的源码以及cmake等工具，
+下载的源码压缩包存放在 $PACKAGE_ROOT 文件夹下
+并解压缩到 $SOURCE_ROOT 文件夹下，
+如果压缩已经存在则跳过下载直接解压缩
+#>
 param(
 [string[]]$names=($all_names -split ' ') ,
 [switch]$force,
@@ -8,12 +14,7 @@ param(
 if(!$BUILD_VARS_INCLUDED){
 . "$PSScriptRoot/build_vars.ps1"
 }
-<#
-下载caffe-ssd及其所有依赖库的源码以及cmake工具，
-下载的源码压缩包存放在 $PACKAGE_ROOT 文件夹下
-并解压缩到 $SOURCE_ROOT 文件夹下，
-如果压缩已经存在则跳过下载直接解压缩
-#>
+
 
 # $file 待检查的文件路径
 # $md5 md5校验码
