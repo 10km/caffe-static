@@ -182,7 +182,19 @@ function fetch_msys2(){
     cmd /c "$bash -l -c `"if [ ! `$(which perl) ] ;then pacman -S --noconfirm perl ;fi; perl --version`" 2>&1"
     exit_on_error "(perl安装失败，请重试)fail to install perl,please try again"
 }
-
+# 如果系统中没有安装解压缩工具(haozip,7z)就下载 7z 压缩包并解压到 $TOOLS_ROOT
+function fetch_7z(){
+    # 检查是否安装了 解压缩软件，如果没安装就下载安装
+    if( ! $UNPACK_TOOL ){
+        $package="$($7Z_INFO.folder)$($7Z_INFO.package_suffix)"
+        $uri="http://7-zip.org/a//$package"
+        download_and_extract -info $7Z_INFO -uri $uri -noUnpack
+        # 将 .msi 解压到指定路径
+        msiexec /a "$(Join-Path $PACKAGE_ROOT -ChildPath $package)" /qn TARGETDIR="$(Join-Path $TOOLS_ROOT -ChildPath $7Z_INFO.folder)"
+        exit_on_error "(7-zip安装失败，请重试)fail to install 7-zip,please try again"
+        $UNPACK_TOOL=get_unpack_cmdexe
+    }
+}
 # 下载 bzip2 1.0.6 
 function fetch_bzip2_1_0_6(){
     $uri="http://www.bzip.org/$($BZIP2_1_0_6_INFO.version)/$($BZIP2_1_0_6_INFO.folder)$($BZIP2_1_0_6_INFO.package_suffix)"
@@ -288,7 +300,7 @@ author: guyadong@gdface.net
     }
 }
 # 所有项目列表
-$all_names="msys2 mingw32 mingw64 cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd"
+$all_names="7z msys2 mingw32 mingw64 cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd"
 # 当前脚本名称
 $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载

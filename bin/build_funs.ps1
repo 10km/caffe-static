@@ -241,11 +241,12 @@ function get_installed_softwares
     function ConvertTo-ProductEntity
     {
         param([Microsoft.Win32.RegistryKey]$RegKey)
-        $product = '' | select Name,Publisher,Version,Location
+        $product = '' | select Name,Publisher,Version,Location,UninstallString
         $product.Name =  $_.GetValue("DisplayName")
         $product.Publisher = $_.GetValue("Publisher")
         $product.Version =  $_.GetValue("DisplayVersion")
         $product.Location= $_.GetValue("InstallLocation")
+        $product.UninstallString=$_.GetValue("UninstallString")
         if( -not [string]::IsNullOrEmpty($product.Name)){
             $product
         }
@@ -277,6 +278,26 @@ function get_msys2_location(){
         return $MSYS2_INFO.root
     }
 }
+# 读取注册表返回查找 haozip或7z
+# 如果找到，就返回对应的命令解压缩程序的全路径
+# 如果没找到，就使用自带的 7z
+function get_unpack_cmdexe(){
+    foreach($r in (get_installed_softwares | Where-Object {$_.name -match '(HaoZip|好压|7-zip)'})){
+        switch -regex ($r){
+            '(好压|haozip)'{ $cmdexe=Join-Path (ls $r.UninstallString).Directory -ChildPath 'HaoZipC.exe';}
+            '(7-zip|7z)' { $cmdexe=Join-Path $r.Location -ChildPath '7z.exe';}
+            Default { throw "(内部异常，不识别的软件名称 )unknow software name:$($r.Name)"}
+        }
+        if(Test-Path $cmdexe -PathType Leaf){
+            return $cmdexe
+        }
+    }
+    # 返回自带的 7z 做解压工具
+    $cmdexe=[io.path]::Combine($7Z_INFO.root,'Files','7-Zip','7z.exe')
+    if( Test-Path $cmdexe -PathType Leaf){
+        return $cmdexe
+    }
+}
 function find_installed_software($name){
     args_not_null_empty_undefined name
     (get_installed_softwares | Where-Object {$_.name -match $name})
@@ -285,3 +306,7 @@ function find_installed_software($name){
 function unix_path($path){
     ($path -replace '^([a-z]):','/$1').Replace('\','/')
 }
+#find_installed_software '(好压|7-zip)'
+find_installed_software '7-zip'
+#get_installed_softwares
+#get_unpack_cmdexe

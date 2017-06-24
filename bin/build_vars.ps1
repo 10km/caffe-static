@@ -251,6 +251,25 @@ $MINGW64_INFO= create_project_info @{
 Add-Member -InputObject $MINGW32_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MINGW32_INFO.folder -Path $TOOLS_ROOT )
 Add-Member -InputObject $MINGW64_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MINGW64_INFO.folder -Path $TOOLS_ROOT )
 
+$7Z_INFO_X86= create_project_info @{
+    prefix="7z"
+    version="1604"
+    md5="8cfd1629f23dfdad978349c93241ef6d"
+    folder="7z1604"
+    package_suffix=".msi"
+} -no_install_path
+$7Z_INFO_X86_64= create_project_info @{
+    prefix="7Z"
+    version="1604"
+    md5="caf2855194340b982a9ef697aca17fa9"
+    folder="7z1604-x64"
+    package_suffix=".msi"
+} -no_install_path
+$7Z_INFO=Get-Variable "7Z_INFO_$HOST_PROCESSOR" -ValueOnly 
+# 添加root属性
+Add-Member -InputObject $7Z_INFO_X86 -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $7Z_INFO_X86.folder -Path $TOOLS_ROOT )
+Add-Member -InputObject $7Z_INFO_X86_64 -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $7Z_INFO_X86_64.folder -Path $TOOLS_ROOT )
+
 # 指定命令解压工具
 # 这里指定的exe，是支持命令行运行的版本,
 # 比如7z的 GUI版本的可执行文件是 7zfm.exe,命令行版本则是7z.exe
@@ -258,4 +277,4 @@ Add-Member -InputObject $MINGW64_INFO -NotePropertyName root -NotePropertyValue 
 # 如果不设置此值，脚本会通过 assoc,ftype命令查找，但有可能查找不到
 #$UNPACK_TOOL="C:\Program Files\7-Zip\7z.exe"
 #$UNPACK_TOOL="C:\Program Files\2345Soft\HaoZip\HaoZipC.exe"
-
+$UNPACK_TOOL=get_unpack_cmdexe
