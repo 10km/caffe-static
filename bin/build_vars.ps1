@@ -213,20 +213,26 @@ Add-Member -InputObject $CMAKE_INFO -NotePropertyName root -NotePropertyValue (J
 Add-Member -InputObject $CMAKE_INFO -NotePropertyName exe -NotePropertyValue ([io.path]::combine($CMAKE_INFO.root,"bin","cmake"))
 
 $MSYS2_INFO_X86= create_project_info @{
-    prefix="msys2"
+    prefix="msys2-base"
     version="i686-20161025"
-    md5="1bca8df8383f31ab24cded366c290339"
-    package_suffix=".exe"
-    install_path=""
+    md5="2799d84b4188b8faa772be6f80db9f45"
+    folder="msys32"
+    package_suffix=".tar.xz"
 } -no_install_path
 $MSYS2_INFO_X86_64= create_project_info @{
-    prefix="msys2"
+    prefix="msys2-base"
     version="x86_64-20161025"
-    md5="0be5539d68dc5533ad387e06dfa08abf"
-    package_suffix=".exe"
-    install_path=""
+    md5="c1598fe0591981611387abee5089dd1f"
+    folder="msys64"
+    package_suffix=".tar.xz"
 } -no_install_path
-$MSYS2_INFO= $MSYS2_INFO_X86 #Get-Variable "MSYS2_INFO_$HOST_PROCESSOR" -ValueOnly
+# 添加root属性
+Add-Member -InputObject $MSYS2_INFO_X86 -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MSYS2_INFO_X86.folder -Path $TOOLS_ROOT )
+Add-Member -InputObject $MSYS2_INFO_X86_64 -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MSYS2_INFO_X86_64.folder -Path $TOOLS_ROOT )
+$MSYS2_INFO= Get-Variable "MSYS2_INFO_$HOST_PROCESSOR" -ValueOnly 
+
+# msys2安装根目录,有可能是用户自己安装的，也可能是本系统安装的
+$MSYS2_INSTALL_LOCATION=get_msys2_location
 $PERL_INFO= create_project_info @{
     prefix="ActivePerl"
     version="5.24.1.2402"
