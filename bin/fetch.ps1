@@ -4,7 +4,10 @@ param(
 [switch]$verbose,
 [switch]$help
 )
-. "./build_vars.ps1"
+
+if(!$BUILD_VARS_INCLUDED){
+. "$PSScriptRoot/build_vars.ps1"
+}
 <#
 下载caffe-ssd及其所有依赖库的源码以及cmake工具，
 下载的源码压缩包存放在 $PACKAGE_ROOT 文件夹下
@@ -323,7 +326,9 @@ echo $names| foreach {
 mkdir_if_not_exist $PACKAGE_ROOT
 mkdir_if_not_exist $SOURCE_ROOT
 mkdir_if_not_exist $TOOLS_ROOT
-
+if($UNPACK_TOOL){
+    fetch_7z
+}
 # 顺序下载解压 $names 中指定的项目
 echo $names| foreach {  
     if( $_){

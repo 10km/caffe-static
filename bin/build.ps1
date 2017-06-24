@@ -1,9 +1,11 @@
 param(
+[string[]]$names=$all_names ,
 [ValidateSet('auto','vs2015','vs2013','gcc')]
 [string]$compiler='auto',
 [ValidateSet('auto','x86','x86_64')]
 [string]$arch='auto',
 [string]$gcc=$DEFAULT_GCC,
+[switch]$revert,
 [switch]$help
 )
 # 用命令行输入的参数初始化 $BUILD_INFO 变量 [PSObject]
@@ -54,7 +56,7 @@ Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name make_cmake_va
         }
         $vars
     }
-. "./build_vars.ps1"
+. "$PSScriptRoot/build_vars.ps1"
 # 调用 where 在搜索路径中查找 $who 指定的可执行文件,
 # 如果找到则返回第一个结果
 # 如果没找到返回空 
@@ -489,7 +491,7 @@ function build_opencv(){
     popd
 }
 # cmake静态编译 leveldb(bureau14)源码
-function build_leveldb_bureau14(){
+function build_leveldb(){
     $project=$LEVELDB_INFO
     $install_path=$project.install_path()
     $boost_root=$BOOST_INFO.install_path()
@@ -581,7 +583,19 @@ function build_lmdb(){
     rm  build.gcc -Force -Recurse
     popd
 }
+# 所有项目列表字符串数组
+$all_names="gflags    glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf ssd".Trim() -split '\s+'
+# 当前脚本名称
+$my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
+if($help){
+    print_help  
+    exit 0
+}
+# 多线程编译参数 make -j 
+$MAKE_JOBS=get_logic_core_count
 init_build_info
+Write-Host 操作系统:$HOST_OS,$HOST_PROCESSOR -ForegroundColor Yellow
+Write-Host 编译器配置: -ForegroundColor Yellow
 $BUILD_INFO
 #build_gflags
 #build_glog
@@ -592,5 +606,71 @@ $BUILD_INFO
 #build_snappy
 #build_opencv
 #build_leveldb_bureau14
-build_openblas
+#build_openblas
 #build_lmdb
+
+# 输出帮助信息
+function print_help(){
+    if($(chcp ) -match '\.*936$'){
+	    echo "用法: $my_name [-names] [项目名称列表,...] [可选项...] 
+编译安装指定的项目,如果没有指定项目名称，则编译所有项目
+    -n,-names       项目名称列表(逗号分隔,忽略大小写)
+                    可选的项目名称: $all_names 
+选项:
+	-c,-compiler    指定编译器类型,可选值: vs2013,vs2015,gcc,默认 auto(自动侦测)
+                    指定为gcc时,如果没有检测到MinGW编译器,则使用本系统自带的MinGW编译器
+    -a,-arch        指定目标代码类型(x86,x86_64),默认auto(自动侦测)
+    -g,-gcc         指定MingGW编译器的安装路径(bin文件夹),指定此值后，编译器类型(-compiler)自动设置为gcc
+    -r,-revert      对项目强制执行fetch,将项目代码恢复到初始状态 
+	-h,-help        显示帮助信息
+作者: guyadong@gdface.net
+"
+    }else{
+        echo "usage: $my_name [-names] [PROJECT_NAME,...] [options...] 
+build & install projects specified by project name,
+all projects builded if no name argument
+    -n,-names       prject names(split by comma,ignore case)
+                    optional project names: $all_names 
+
+options:
+	-c,-compiler    compiler type,valid value:'vs2013','vs2015','gcc',default 'auto' 
+    -a,-arch        target processor architecture: 'x86','x86_64',default 'auto'
+    -g,-gcc         MinGW compiler location('bin' folder,such as 'P:\MinGW\mingw64\bin'),
+                    the '-compiler' option will be overwrited  to 'gcc' if this option defined 
+    -r,-revert      force fetch the project,revert source code
+	-h,-help        print the message
+author: guyadong@gdface.net
+"
+    }
+}
+
+echo $names| foreach {    
+    if( ! (Test-Path function:"build_$($_.ToLower())") ){
+        echo "(不识别的项目名称)unknow project name:$_"
+        print_help
+        exit -1
+    }
+}
+$fetch_names=@()
+if($revert){
+    $fetch_names=$names
+}else{
+    echo $names| foreach {
+        # 如果源码文件夹不存在,则需要fetch该项目   
+        $info=Get-Variable "$($_.ToLower())_INFO" -ValueOnly
+        if(  ! (Test-Path (Join-Path $SOURCE_ROOT -ChildPath $info.folder) -PathType Container)){
+            $fetch_names+=$_
+        }
+    }
+}
+if($fetch_names.Count){
+    if($revert){
+        &$PSScriptRoot/fetch.ps1 $fetch_names -force
+    }else{
+        &$PSScriptRoot/fetch.ps1 $fetch_names
+    }    
+}
+# 顺序编译 $names 中指定的项目
+echo $names| foreach {  
+        &build_$($_.ToLower())      
+}

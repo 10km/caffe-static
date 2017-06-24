@@ -1,10 +1,6 @@
 
-. "./build_funs.ps1"
-# 获取CPU逻辑核心总数
-function get_logic_core_count(){
-    $cpu=Get-CimInstance win32_processor
-    return @($cpu).count*$cpu.NumberOfLogicalProcessors
-}
+. "$PSScriptRoot/build_funs.ps1"
+$BUILD_VARS_INCLUDED=$true
 function get_os_processor(){
     try { 
         # 先尝试执行linux命令判断操作系统,产生异常时执行windows下指令
@@ -66,8 +62,7 @@ $PATCH_ROOT=Join-Path -ChildPath patch -Path $DEPENDS_ROOT
 # 工具软件根据目录
 $TOOLS_ROOT=Join-Path -ChildPath tools -Path $DEPENDS_ROOT 
 
-# 多线程编译参数 make -j 
-$MAKE_JOBS=get_logic_core_count
+
 ##################################项目配置信息
 $PROTOBUF_INFO= create_project_info @{
 	prefix="protobuf"

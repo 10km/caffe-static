@@ -306,7 +306,12 @@ function find_installed_software($name){
 function unix_path($path){
     ($path -replace '^([a-z]):','/$1').Replace('\','/')
 }
+# 获取CPU逻辑核心总数
+function get_logic_core_count(){
+    $cpu=Get-CimInstance win32_processor
+    return @($cpu).count*$cpu.NumberOfLogicalProcessors
+}
 #find_installed_software '(好压|7-zip)'
-find_installed_software '7-zip'
+#find_installed_software '7-zip'
 #get_installed_softwares
 #get_unpack_cmdexe
