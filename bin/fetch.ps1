@@ -329,6 +329,7 @@ mkdir_if_not_exist $TOOLS_ROOT
 if($UNPACK_TOOL){
     fetch_7z
 }
+Write-Host "解压缩工具(unpack tool):$UNPACK_TOOL" -ForegroundColor Blue
 # 顺序下载解压 $names 中指定的项目
 echo $names| foreach {  
     if( $_){
