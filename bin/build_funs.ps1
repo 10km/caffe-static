@@ -157,7 +157,7 @@ function unpack_7z([string]$exe,[string]$package,[string]$targetFolder){
     }   
     cmd /c $cmd
     exit_on_error
-    if( $package.ToLower().EndsWith('.tar.gz')){        
+    if( $package -match '.tar.[gx]z$'){        
         $tar=Join-Path -Path $targetFolder -ChildPath (Get-Item $package).BaseName
         $cmd="""$unpack_exe"" x $tar -o$targetFolder -y"
         if($VERBOSE_EXTRACT){
@@ -267,19 +267,15 @@ function get_installed_softwares
         }
     }
 }
-
-function check_msys2(){
-    get_installed_softwares | Where-Object {$_.name -match 'msys2'} | foreach{
-        if(Test-Path (Join-Path $_.Location,'bin' -ChildPath 'msys2_shell.cmd') -PathType Leaf){
-            if($MSYS2_INFO){
-                $MSYS2_INFO.install_path=$_.Location
-            }            
-            return $_
+function get_msys2_location(){
+    foreach($r in (get_installed_softwares | Where-Object {$_.name -match 'msys2'})){
+        if(Test-Path (Join-Path $r.Location,'bin' -ChildPath 'msys2_shell.cmd') -PathType Leaf){
+            return $r.Location
         }
     }
-}
-function check_perl(){
-    (get_installed_softwares | Where-Object {$_.name -match 'perl'})
+    if( $MSYS2_INFO -and (Test-Path $MSYS2_INFO.root -PathType Container)){
+        return $MSYS2_INFO.root
+    }
 }
 function find_installed_software($name){
     args_not_null_empty_undefined name
