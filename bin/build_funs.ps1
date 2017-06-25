@@ -293,7 +293,7 @@ function get_unpack_cmdexe(){
         }
     }
     # 返回自带的 7z 做解压工具
-    $cmdexe=[io.path]::Combine($7Z_INFO.root,'Files','7-Zip','7z.exe')
+    $cmdexe=[io.path]::Combine($7Z_INFO.root,'7z.exe')
     if( Test-Path $cmdexe -PathType Leaf){
         return $cmdexe
     }
