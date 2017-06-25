@@ -12,36 +12,28 @@
 include(FindPackageHandleStandardArgs)
 # modified by guyadong
 set(GLOG_ROOT_DIR "" CACHE PATH "Folder contains Google glog")
-if(WIN32)
-    find_path(GLOG_INCLUDE_DIR glog/logging.h
-        PATHS ${GLOG_ROOT_DIR}/src/windows NO_DEFAULT_PATH)
-
-    find_path(GLOG_INCLUDE_DIR glog/logging.h
-        PATHS ${GLOG_ROOT_DIR}/src/windows)
-else()
-    find_path(GLOG_INCLUDE_DIR glog/logging.h
-        PATHS ${GLOG_ROOT_DIR}/include
-				NO_DEFAULT_PATH)
-    find_path(GLOG_INCLUDE_DIR glog/logging.h
-        PATHS ${GLOG_ROOT_DIR}/include)
-endif()
+find_path(GLOG_INCLUDE_DIR glog/logging.h
+    PATHS ${GLOG_ROOT_DIR}/include
+		NO_DEFAULT_PATH)
+find_path(GLOG_INCLUDE_DIR glog/logging.h
+    PATHS ${GLOG_ROOT_DIR}/include)
 
 if(MSVC)
-    find_library(GLOG_LIBRARY_RELEASE libglog_static
+    find_library(GLOG_LIBRARY_RELEASE glog glog_static
         PATHS ${GLOG_ROOT_DIR}
-        PATH_SUFFIXES Release NO_DEFAULT_PATH)
+        PATH_SUFFIXES lib NO_DEFAULT_PATH)
 
-    find_library(GLOG_LIBRARY_DEBUG libglog_static
+    find_library(GLOG_LIBRARY_DEBUG glog glog_static
         PATHS ${GLOG_ROOT_DIR}
-        PATH_SUFFIXES Debug NO_DEFAULT_PATH)
+        PATH_SUFFIXES lib NO_DEFAULT_PATH)
 
-    find_library(GLOG_LIBRARY_RELEASE libglog_static
+    find_library(GLOG_LIBRARY_RELEASE glog glog_static
         PATHS ${GLOG_ROOT_DIR}
-        PATH_SUFFIXES Release)
+        PATH_SUFFIXES lib)
 
-    find_library(GLOG_LIBRARY_DEBUG libglog_static
-        PATHS ${GLOG_ROOT_DIR}
-        PATH_SUFFIXES Debug)
+    find_library(GLOG_LIBRARY_DEBUG glog glog_static
+        PATHS ${GLOG_ROOT_DIR}/lib
+        PATH_SUFFIXES lib)
 
     set(GLOG_LIBRARY optimized ${GLOG_LIBRARY_RELEASE} debug ${GLOG_LIBRARY_DEBUG})
 else()
