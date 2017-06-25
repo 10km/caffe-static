@@ -191,12 +191,18 @@ function fetch_7z(){
     # 检查是否安装了 解压缩软件，如果没安装就下载安装
     if( ! $UNPACK_TOOL ){
         $package="$($7Z_INFO.folder)$($7Z_INFO.package_suffix)"
-        $uri="http://7-zip.org/a//$package"
+        $uri="http://7-zip.org/a/$package"
         download_and_extract -info $7Z_INFO -uri $uri -noUnpack
         # 将 .msi 解压到指定路径
-        msiexec /a "$(Join-Path $PACKAGE_ROOT -ChildPath $package)" /qn TARGETDIR="$(Join-Path $TOOLS_ROOT -ChildPath $7Z_INFO.folder)"
+        $target_folder=Join-Path $TOOLS_ROOT -ChildPath $7Z_INFO.folder
+        remove_if_exist $target_folder
+        msiexec /a "$(Join-Path $PACKAGE_ROOT -ChildPath $package)" /qn TARGETDIR="$target_folder"
         exit_on_error "(7-zip安装失败，请重试)fail to install 7-zip,please try again"
-        $UNPACK_TOOL=get_unpack_cmdexe
+        # 将解开的 .msi 包中 Files/7-Zip 文件夹移到根目录，然后删除所有无用的文件
+        $delitem=Get-ChildItem $target_folder
+        Get-ChildItem ([io.path]::Combine($target_folder,'Files','7-Zip')) | Move-Item -Destination $target_folder
+        $delitem |Remove-Item -Recurse 
+        $UNPACK_TOOL = get_unpack_cmdexe
     }
 }
 # 下载 bzip2 1.0.6 
@@ -210,7 +216,7 @@ function modify_bzip2_1_0_6(){
 	$bzip2_makefile=[io.path]::combine($SOURCE_ROOT,$BZIP2_1_0_6_INFO.folder,"Makefile")
     exit_if_not_exist $bzip2_makefile -type Leaf
     if(! (Get-Content $bzip2_makefile|Select-String  -Pattern '^\s*CFLAGS\s*=\s*' | Select-String -Pattern '-fPIC') ){
-        echo "修改 $bzip2_makefile,在编译选项中增加 -fPIC 参数"
+        echo "function:$($MyInvocation.MyCommand) -> 修改 $bzip2_makefile,在编译选项中增加 -fPIC 参数"
         (Get-Content $bzip2_makefile) -replace '(^\s*CFLAGS\s*=)(.*$)','#modified by guyadong,add -fPIC
 $1-fPIC $2' | Out-File $bzip2_makefile -Encoding ascii -Force
         exit_on_error
@@ -219,7 +225,7 @@ $1-fPIC $2' | Out-File $bzip2_makefile -Encoding ascii -Force
 #################################################################
 function modify_bzip2_1_0_5(){
 	$bzip2_cmake=[io.path]::combine($SOURCE_ROOT,$BZIP2_INFO.folder,"CMakeLists.txt")
-	echo "修改 $bzip2_cmake ,删除 SHARED 参数"
+	echo "function:$($MyInvocation.MyCommand) -> 修改 $bzip2_cmake ,删除 SHARED 参数" 
     (Get-Content $bzip2_cmake) -replace '(^\s*ADD_LIBRARY\s*\(\s*bz2\s*)SHARED','#modified by guyadong,remove SHARED
 $1'| Out-File $bzip2_cmake -Encoding ascii -Force    
     exit_on_error
@@ -227,11 +233,11 @@ $1'| Out-File $bzip2_cmake -Encoding ascii -Force
 #################################################################
 function modify_snappy(){
 	$snappy_cmake=[io.path]::combine($SOURCE_ROOT,$SNAPPY_INFO.folder,"CMakeLists.txt")
-	echo "修改 $snappy_cmake ,删除 SHARED 参数"
+	echo "function:$($MyInvocation.MyCommand) -> 修改 $snappy_cmake ,删除 SHARED 参数"
     (Get-Content $snappy_cmake) -replace '(^\s*ADD_LIBRARY\s*\(\s*snappy\s*)SHARED','#modified by guyadong,remove SHARED
 $1'| Out-File $snappy_cmake -Encoding ascii -Force    
     $snappy_test_cc=[io.path]::combine($SOURCE_ROOT,$SNAPPY_INFO.folder,"snappy-test.cc")
-    echo "修改 $snappy_test_cc ,解决msvc下编译错误"
+    echo "function:$($MyInvocation.MyCommand) -> 修改 $snappy_test_cc ,解决msvc下编译错误"
     (Get-Content $snappy_test_cc -Raw ) -replace '(.*)(?!\()\s*(std::max)\s*(?!\))(.*)','// modified by guyadong
 $1($2)$3' | Out-File $snappy_test_cc -Encoding ascii -Force
 	exit_on_error
@@ -239,7 +245,7 @@ $1($2)$3' | Out-File $snappy_test_cc -Encoding ascii -Force
 ######################################################
 function modify_ssd(){
 	$ssd_src=Join-Path -Path $SOURCE_ROOT -ChildPath $SSD_INFO.folder
-	echo "(复制修改的补丁文件)copy patch file to $ssd_src"	
+	echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $ssd_src"	
     cp -Path (Join-Path -Path $PATCH_ROOT -ChildPath $SSD_INFO.folder) -Destination $SOURCE_ROOT -Recurse -Force -Verbose
 	exit_on_error 
 }
@@ -250,14 +256,14 @@ function modify_leveldb(){
     $cmake_file='CMakeLists.txt'
 	$leveldb_cmake=Join-Path -Path $leveldb_src -ChildPath $cmake_file
     if((Test-Path $patch_folder -PathType Container) -and (Test-Path (Join-Path -Path $leveldb_src -ChildPath $cmake_file) -PathType Leaf)){
-	    echo "(复制修改的补丁文件)copy patch file to $leveldb_src"	
+	    echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $leveldb_src"	
         cp -Path $patch_folder -Destination $SOURCE_ROOT -Force -Verbose -Recurse
 	    exit_on_error
     }
 }
 function modify_lmdb(){
     $lmdb_src=[io.path]::Combine($SOURCE_ROOT,$LMDB_INFO.folder,'libraries','liblmdb')
-    echo "(复制修改的补丁文件)copy patch file to $lmdb_src"	
+    echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $lmdb_src"	
     cp -Path ([io.path]::combine($PATCH_ROOT,$LMDB_INFO.folder,"*")) -Destination $lmdb_src -Force -Verbose
     exit_on_error
 }
@@ -330,7 +336,7 @@ mkdir_if_not_exist $TOOLS_ROOT
 if($UNPACK_TOOL){
     fetch_7z
 }
-Write-Host "解压缩工具(unpack tool):$UNPACK_TOOL" -ForegroundColor Blue
+Write-Host "解压缩工具(unpack tool):$UNPACK_TOOL" -ForegroundColor Yellow
 # 顺序下载解压 $names 中指定的项目
 echo $names| foreach {  
     if( $_){
