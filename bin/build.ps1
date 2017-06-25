@@ -659,8 +659,6 @@ function build_ssd(){
 	    -DGLOG_ROOT_DIR=`"$($GLOG_INFO.install_path())`"
 	    -DGFLAGS_ROOT_DIR=`"$($GFLAGS_INFO.install_path())`" 
 	    -DHDF5_ROOT=`"$($HDF5_INFO.install_path())`"
-#        -DHDF5_NO_FIND_PACKAGE_CONFIG_FILE=on
-#        -DHDF5_ROOT=`"$(Join-Path $($HDF5_INFO.install_path()) -ChildPath cmake)`"
         -DHDF5_USE_STATIC_LIBRARIES=on
 	    -DBOOST_ROOT=`"$($BOOST_INFO.install_path())`" 
 	    -DBoost_NO_SYSTEM_PATHS=on 
@@ -684,7 +682,7 @@ function build_ssd(){
     cmd /c $cmd
     exit_on_error
     # 修改所有 link.txt 删除-lstdc++ 选项，保证静态连接libstdc++库,否则在USE_OPENCV=on的情况下，libstdc++不会静态链接
-    if($BUILD_INFO.is_msvc()){
+    if($BUILD_INFO.is_gcc()){
         ls . -Filter link.txt -Recurse|foreach {    
 	        echo "modifing file: $_"
 	        sed -i -r "s/-lstdc\+\+/ /g" $_
