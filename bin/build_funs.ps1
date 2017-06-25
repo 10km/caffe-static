@@ -89,6 +89,7 @@ function exit_if_not_exist([string]$file,[string]$msg,[Microsoft.PowerShell.Comm
 function clean_folder([string]$folder){
     args_not_null_empty_undefined folder
     if(Test-Path $folder){
+        Write-Host "(Çå¿Õ)clearing $folder" -ForegroundColor Yellow
     	del -Recurse -Force $folder\*
     }else{
         $null=mkdir $folder
