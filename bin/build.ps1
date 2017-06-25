@@ -56,6 +56,15 @@ Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name make_cmake_va
         }
         $vars
     }
+# 判断编译器是不是 msvc
+Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name is_msvc -Value {
+    $this.compiler -match 'vs\d+'
+}
+# 判断编译器是不是 msvc
+Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name is_gcc -Value {
+    $this.compiler -eq 'gcc'
+}
+    
 . "$PSScriptRoot/build_vars.ps1"
 # 调用 where 在搜索路径中查找 $who 指定的可执行文件,
 # 如果找到则返回第一个结果
@@ -174,7 +183,7 @@ function init_build_info(){
         $BUILD_INFO.compiler=detect_compiler  $BUILD_INFO.compiler
     }
 
-    if($BUILD_INFO.compiler -eq 'gcc'){
+    if($BUILD_INFO.is_gcc()){
         if($BUILD_INFO.arch -eq 'x86'){
             $BUILD_INFO.c_flags=$BUILD_INFO.cxx_flags='-m32'
         }elseif($BUILD_INFO.arch -eq 'x86_64'){
@@ -186,10 +195,10 @@ function init_build_info(){
 }
 # 调用 vcvarsall.bat 创建msvc编译环境
 # 当编译器选择 gcc 不会执行该函数
-# 通过 $MSVC_ENV_MAKED 变量保证 该函数只会被调用一次
+# 通过 $env:MSVC_ENV_MAKED 变量保证 该函数只会被调用一次
 function make_msvc_env(){
     args_not_null_empty_undefined BUILD_INFO
-    if(!$script:MSVC_ENV_MAKED -and $BUILD_INFO.compiler -match 'vs(\d+)'){
+    if( $env:MSVC_ENV_MAKED -ne $BUILD_INFO.arch -and $BUILD_INFO.is_msvc()){
         # visual studio 版本(2013|2015)
         $vnum=$Matches[1]
         $cmd="""$(Join-Path $($BUILD_INFO.msvc_root) -ChildPath vcvarsall.bat)"""
@@ -205,8 +214,8 @@ function make_msvc_env(){
             Set-Item -Force -Path "env:$($v[0])"  -Value "$($v[1])"
           }
         }
-        write-host "Visual Studio $vnum Command Prompt variables set." -ForegroundColor Yellow        
-        $script:MSVC_ENV_MAKED=$true
+        $env:MSVC_ENV_MAKED=$BUILD_INFO.arch
+        write-host "Visual Studio $vnum Command Prompt variables ($env:MSVC_ENV_MAKED) set." -ForegroundColor Yellow
     }
 }
 
@@ -264,7 +273,12 @@ function build_bzip2(){
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     clean_folder build.gcc
     pushd build.gcc
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
+    if($BUILD_INFO.is_msvc()){
+        # MSVC 关闭编译警告
+        $c_flags='/wd4996 /wd4267'
+    }
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define($c_flags)) -DCMAKE_INSTALL_PREFIX=""$install_path""
+        -DCMAKE_POLICY_DEFAULT_CMP0026=OLD
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
@@ -288,7 +302,7 @@ function build_boost(){
     # user-config.jam 位于boost 根目录下
     $pwd=$(cmd /c cd)
     $jam=Join-Path $pwd -ChildPath user-config.jam
-    if($BUILD_INFO.compiler -eq 'gcc'){
+    if($BUILD_INFO.is_gcc()){
         # 使用 gcc 编译器时用 user-config.jam 指定编译器路径
         # Out-File 默认生成的文件有bom头，所以生成 user-config.jam 时要指定 ASCII 编码(无bom)，否则会编译时读取文件报错：syntax error at EOF
         $env:BOOST_BUILD_PATH=$pwd
@@ -414,9 +428,9 @@ function build_opencv(){
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     clean_folder build.gcc
     pushd build.gcc
-    if($BUILD_INFO.compiler -match 'vs\d+'){
+    if($BUILD_INFO.is_msvc()){
         $build_with_static_crt='-DBUILD_WITH_STATIC_CRT=on'
-    }elseif($BUILD_INFO.compiler -eq 'gcc'){
+    }elseif($BUILD_INFO.is_gcc()){
         $build_fat_java_lib='-DBUILD_FAT_JAVA_LIB=off'
     }
     # 如果不编译 FFMPEG , cmake时不需要指定 BZIP2_LIBRARIES
@@ -521,7 +535,7 @@ function build_openblas(){
     }
     $BINARY=$(if($BUILD_INFO.arch -eq 'x86'){32}else{64})    
     $mingw_make="mingw32-make"
-    if($BUILD_INFO.compiler -eq 'gcc'){
+    if($BUILD_INFO.is_gcc()){
         $mingw_bin=$BUILD_INFO.gcc_location
         $mingw_make=$BUILD_INFO.make_exe
         $mingw_version=$BUILD_INFO.gcc_version
@@ -583,32 +597,6 @@ function build_lmdb(){
     rm  build.gcc -Force -Recurse
     popd
 }
-# 所有项目列表字符串数组
-$all_names="gflags    glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf ssd".Trim() -split '\s+'
-# 当前脚本名称
-$my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
-if($help){
-    print_help  
-    exit 0
-}
-# 多线程编译参数 make -j 
-$MAKE_JOBS=get_logic_core_count
-init_build_info
-Write-Host 操作系统:$HOST_OS,$HOST_PROCESSOR -ForegroundColor Yellow
-Write-Host 编译器配置: -ForegroundColor Yellow
-$BUILD_INFO
-#build_gflags
-#build_glog
-#build_bzip2
-#build_boost
-#build_protobuf
-#build_hdf5
-#build_snappy
-#build_opencv
-#build_leveldb_bureau14
-#build_openblas
-#build_lmdb
-
 # 输出帮助信息
 function print_help(){
     if($(chcp ) -match '\.*936$'){
@@ -643,6 +631,31 @@ author: guyadong@gdface.net
 "
     }
 }
+# 所有项目列表字符串数组
+$all_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf ssd".Trim() -split '\s+'
+# 当前脚本名称
+$my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
+if($help){
+    print_help  
+    exit 0
+}
+# 多线程编译参数 make -j 
+$MAKE_JOBS=get_logic_core_count
+init_build_info
+Write-Host 操作系统:$HOST_OS,$HOST_PROCESSOR -ForegroundColor Yellow
+Write-Host 编译器配置: -ForegroundColor Yellow
+$BUILD_INFO
+#build_gflags
+#build_glog
+#build_bzip2
+#build_boost
+#build_protobuf
+#build_hdf5
+#build_snappy
+#build_opencv
+#build_leveldb_bureau14
+#build_openblas
+#build_lmdb
 
 echo $names| foreach {    
     if( ! (Test-Path function:"build_$($_.ToLower())") ){
@@ -672,5 +685,5 @@ if($fetch_names.Count){
 }
 # 顺序编译 $names 中指定的项目
 echo $names| foreach {  
-        &build_$($_.ToLower())      
+    &build_$($_.ToLower())      
 }
