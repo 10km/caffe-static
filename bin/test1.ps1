@@ -14,7 +14,22 @@
 #&$PSScriptRoot/fetch.ps1 bzip2 
 #unpack d:\caffe-static\package\hdf5-1.8.16.tar.gz d:\caffe-static\package\t
 #unpack d:\caffe-static\package\gflags-2.2.0.zip d:\caffe-static\package\t
+function test([ref][string]$str,[ref][bool]$b){
+    $str.value+="hello"
+    $b.value=$b.value -or $True
+}
 
-("gflags    glog   bzip2 boost ".Trim() -split '\s+').count
+$str="world"
+$b=$false
+test ([ref]$str) ([ref]$b)
 
+$str
+$b
 
+Function myFunction ([ref]$aString) { 
+    $aString.Value = "newValue"; 
+} 
+$localVariable = "oldValue" 
+Write-Host $localVariable # Outputs: oldValue <br>
+myFunction ([ref]$localVariable); 
+Write-Host $localVariable # Outputs: newValue <br>

@@ -1,8 +1,10 @@
 <#
-下载caffe-ssd及其所有依赖库的源码以及cmake等工具，
+下载caffe-ssd及其所有依赖库的源码以及cmake,msys2等工具，
 下载的源码压缩包存放在 $PACKAGE_ROOT 文件夹下
 并解压缩到 $SOURCE_ROOT 文件夹下，
-如果压缩已经存在则跳过下载直接解压缩
+如果压缩包已经存在则跳过下载直接解压缩
+如果源码需要修改，则自动完成文件修改( modify_xxx 系列函数)
+author: guyadong@gdface.net
 #>
 param(
 [string[]]$names=($all_names -split ' ') ,

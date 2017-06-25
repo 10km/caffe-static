@@ -1,3 +1,8 @@
+<#
+自动编译caffe-ssd及其依赖的所有库，
+如果指定项目的源码不存在,则自动调用fetch.ps1 下载源码
+author: guyadong@gdface.net
+#>
 param(
 [string[]]$names=$all_names ,
 [ValidateSet('auto','vs2015','vs2013','gcc')]
@@ -115,6 +120,8 @@ function detect_compiler(){
             if($vscomntools_value -and (Test-Path "$([io.path]::Combine($vc_root,'bin','cl.exe'))" -PathType Leaf)){
                 $BUILD_INFO.msvc_root=$vc_root
                 $BUILD_INFO.cmake_vars_define="-G ""NMake Makefiles"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"   
+                #$BUILD_INFO.cmake_vars_define="-G ""Visual Studio 14 2015 Win64"" "   
+                
                 $BUILD_INFO.make_exe="nmake"  
                 return $arg
             }
@@ -590,6 +597,96 @@ function build_lmdb(){
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
+    remove_if_exist "$install_path"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    exit_on_error
+    popd
+    rm  build.gcc -Force -Recurse
+    popd
+}
+# 检查指定的组件是否已经编译安装
+function check_component([string]$folder,[PSObject]$info,[ref][string[]]$error_msg){
+    args_not_null_empty_undefined folder info error_msg
+    $null=(! (exist_file $folder)) -and ( $error_msg.Value+="(缺少 $($info.prefix) ),not found $gflags_root,please run build.ps1 $($info.prefix)")
+}
+# cmake静态编译 caffe-ssd 源码
+function build_ssd(){
+    $project=$SSD_INFO
+    $install_path=$project.install_path()
+    [string[]]$error_message=@()
+    check_component $GFLAGS_INFO.install_path() $GFLAGS_INFO ([ref]$error_message)
+    check_component $GLOG_INFO.install_path() $GLOG_INFO ([ref]$error_message)
+    # hdf5 cmake 位置  
+    $hdf5_cmake_dir="$($HDF5_INFO.install_path())/cmake"
+    check_component $hdf5_cmake_dir $HDF5_INFO ([ref]$error_message)
+    check_component $BOOST_INFO.install_path() $BOOST_INFO ([ref]$error_message)
+    check_component $OPENBLAS_INFO.install_path() $OPENBLAS_INFO ([ref]$error_message)
+    check_component $PROTOBUF_INFO.install_path() $PROTOBUF_INFO ([ref]$error_message)
+    # protobuf lib 路径
+    $protobuf_lib="$($PROTOBUF_INFO.install_path())/lib"
+    check_component $SNAPPY_INFO.install_path() $SNAPPY_INFO ([ref]$error_message)
+    check_component $LMDB_INFO.install_path() $LMDB_INFO ([ref]$error_message)
+    check_component $LEVELDB_INFO.install_path() $LEVELDB_INFO ([ref]$error_message)
+    # opencv 配置文件(OpenCVConfig.cmake)所在路径
+    $opencv_cmake_dir="$($OPENCV_INFO.install_path())/x64/vc14/staticlib"
+    check_component $opencv_cmake_dir $OPENCV_INFO ([ref]$error_message)
+    if($error_message.count){
+        Write-Host ($error_message -join '`n') -ForegroundColor Yellow
+        exit -1
+    }
+    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    clean_folder build.gcc
+    pushd build.gcc
+    # 指定 OpenBLAS 安装路径 参见 $caffe_source/cmake/Modules/FindOpenBLAS.cmake
+    $env:OpenBLAS_HOME=$OPENBLAS_INFO.install_path()
+    # 指定 lmdb 安装路径 参见 $caffe_source/cmake/Modules/FindLMDB.cmake.cmake
+    $env:LMDB_DIR=$LMDB_INFO.install_path()
+    # 指定 leveldb 安装路径 参见 $caffe_source/cmake/Modules/FindLevelDB.cmake.cmake
+    $env:LEVELDB_ROOT=$LEVELDB_INFO.install_path()
+    # GLOG_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGlog.cmake
+    # GFLAGS_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGFlags.cmake
+    # HDF5_ROOT 参见 https://cmake.org/cmake/help/v3.8/module/FindHDF5.html
+    # BOOST_ROOT,Boost_NO_SYSTEM_PATHS 参见 https://cmake.org/cmake/help/v3.8/module/FindBoost.html
+    # SNAPPY_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindSnappy.cmake
+    # PROTOBUF_LIBRARY,PROTOBUF_PROTOC_LIBRARY... 参见 https://cmake.org/cmake/help/v3.8/module/FindProtobuf.html
+    # OpenCV_DIR 参见https://cmake.org/cmake/help/v3.8/command/find_package.html
+    $lib_suffix=$(if($BUILD_INFO.is_msvc()){'.lib'}else{'.a'})
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""  
+	    -DGLOG_ROOT_DIR=`"$($GLOG_INFO.install_path())`"
+	    -DGFLAGS_ROOT_DIR=`"$($GFLAGS_INFO.install_path())`" 
+	    -DHDF5_ROOT=`"$($HDF5_INFO.install_path())`"
+#        -DHDF5_NO_FIND_PACKAGE_CONFIG_FILE=on
+#        -DHDF5_ROOT=`"$(Join-Path $($HDF5_INFO.install_path()) -ChildPath cmake)`"
+        -DHDF5_USE_STATIC_LIBRARIES=on
+	    -DBOOST_ROOT=`"$($BOOST_INFO.install_path())`" 
+	    -DBoost_NO_SYSTEM_PATHS=on 
+        -DBoost_USE_STATIC_LIBS=on
+	    -DSNAPPY_ROOT_DIR=`"$($SNAPPY_INFO.install_path())`"
+	    -DOpenCV_DIR=$opencv_cmake_dir 
+	    -DPROTOBUF_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf$lib_suffix" )`"
+	    -DPROTOBUF_PROTOC_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotoc$lib_suffix")`"
+	    -DPROTOBUF_LITE_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf-lite$lib_suffix")`"
+	    -DPROTOBUF_PROTOC_EXECUTABLE=`"$([io.path]::Combine($($PROTOBUF_INFO.install_path()),'bin','protoc.exe'))`"
+	    -DPROTOBUF_INCLUDE_DIR=`"$($PROTOBUF_INFO.install_path().replace('\','/'))/include`"
+	    -DCPU_ONLY=ON 
+	    -DBLAS=Open 
+	    -DBUILD_SHARED_LIBS=off 
+	    -DBUILD_docs=off 
+	    -DBUILD_python=off 
+	    -DBUILD_python_layer=off 
+	    -DUSE_LEVELDB=on 
+	    -DUSE_LMDB=on 
+	    -DUSE_OPENCV=on  2>&1" 
+    cmd /c $cmd
+    exit_on_error
+    # 修改所有 link.txt 删除-lstdc++ 选项，保证静态连接libstdc++库,否则在USE_OPENCV=on的情况下，libstdc++不会静态链接
+    if($BUILD_INFO.is_msvc()){
+        ls . -Filter link.txt -Recurse|foreach {    
+	        echo "modifing file: $_"
+	        sed -i -r "s/-lstdc\+\+/ /g" $_
+            (Get-Content $_) -replace '(^-lstdc\+\+','' | Out-File $_ -Encoding ascii -Force
+        }
+    }
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
