@@ -13,6 +13,10 @@ param(
 [switch]$revert,
 [switch]$help
 )
+# 所有项目列表字符串数组
+$all_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf ssd".Trim() -split '\s+'
+# 当前脚本名称
+$my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 用命令行输入的参数初始化 $BUILD_INFO 变量 [PSObject]
 $BUILD_INFO=New-Object PSObject -Property @{
     # 编译器类型 vs2013|vs2015|gcc
@@ -728,10 +732,7 @@ author: guyadong@gdface.net
 "
     }
 }
-# 所有项目列表字符串数组
-$all_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf ssd".Trim() -split '\s+'
-# 当前脚本名称
-$my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
+
 if($help){
     print_help  
     exit 0
