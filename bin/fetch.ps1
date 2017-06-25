@@ -326,7 +326,7 @@ if($help){
 }
 echo $names| foreach {    
     if( $_ -and ! (Test-Path function:"fetch_$($_.ToLower())") ){
-        echo "(不识别的项目名称)unknow project name:$_"
+        Write-Host "(不识别的项目名称)unknow project name:$_" -ForegroundColor Yellow
         print_help
         exit -1
     }
