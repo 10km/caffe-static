@@ -29,6 +29,8 @@ $BUILD_INFO=New-Object PSObject -Property @{
     env_vs2013='VS120COMNTOOLS'
     # msvc安装路径 如:"C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC"
     msvc_root=""
+    # Visual Studio 版本号 (2013/2015...)
+    vs_version=""
     # gcc安装路径 如:P:\MinGW\mingw64\bin
     gcc_location=$gcc
     # gcc版本号
@@ -125,7 +127,8 @@ function detect_compiler(){
                 $BUILD_INFO.msvc_root=$vc_root
                 $BUILD_INFO.cmake_vars_define="-G ""NMake Makefiles"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"   
                 #$BUILD_INFO.cmake_vars_define="-G ""Visual Studio 14 2015 Win64"" "   
-                
+                $m = $arg -match 'vs(\d+)'
+                $BUILD_INFO.vs_version=$Matches[1] 
                 $BUILD_INFO.make_exe="nmake"  
                 return $arg
             }
@@ -210,8 +213,6 @@ function init_build_info(){
 function make_msvc_env(){
     args_not_null_empty_undefined BUILD_INFO
     if( $env:MSVC_ENV_MAKED -ne $BUILD_INFO.arch -and $BUILD_INFO.is_msvc()){
-        # visual studio 版本(2013|2015)
-        $vnum=$Matches[1]
         $cmd="""$(Join-Path $($BUILD_INFO.msvc_root) -ChildPath vcvarsall.bat)"""
         if($BUILD_INFO.arch -eq 'x86'){
             $cmd+=' x86'
@@ -226,7 +227,7 @@ function make_msvc_env(){
           }
         }
         $env:MSVC_ENV_MAKED=$BUILD_INFO.arch
-        write-host "Visual Studio $vnum Command Prompt variables ($env:MSVC_ENV_MAKED) set." -ForegroundColor Yellow
+        write-host "Visual Studio $($BUILD_INFO.vs_version) Command Prompt variables ($env:MSVC_ENV_MAKED) set." -ForegroundColor Yellow
     }
 }
 
