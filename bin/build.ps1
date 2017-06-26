@@ -617,7 +617,7 @@ function build_lmdb(){
 # 检查指定的组件是否已经编译安装
 function check_component([string]$folder,[PSObject]$info,[ref][string[]]$error_msg){
     args_not_null_empty_undefined folder info error_msg
-    $null=(! (exist_file $folder)) -and ( $error_msg.Value+="(缺少 $($info.prefix) ),not found $gflags_root,please run build.ps1 $($info.prefix)")
+    $null=(! (exist_file $folder)) -and ( $error_msg.Value+="(缺少 $($info.prefix) ),not found $folder,please run build.ps1 $($info.prefix)")
 }
 # cmake静态编译 caffe-ssd 源码
 function build_ssd(){
