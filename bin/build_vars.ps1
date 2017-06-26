@@ -192,6 +192,11 @@ $SSD_INFO= create_project_info @{
     version="ssd"
     owner="weiliu89"	
 }
+$CAFFE_WINDOWS_INFO= create_project_info @{
+	prefix="caffe"
+    version="windows"
+    owner="BVLC"	
+}
 
 $cmake_hash_linux=@{
     prefix="cmake"

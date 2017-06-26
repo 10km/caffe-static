@@ -280,6 +280,7 @@ function fetch_lmdb(){ fetch_from_github $LMDB_INFO ; modify_lmdb }
 function fetch_snappy(){ fetch_from_github $SNAPPY_INFO; modify_snappy ; }
 function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; }
 function fetch_ssd(){ fetch_from_github $SSD_INFO ; modify_ssd; }
+function fetch_caffe_windows(){ fetch_from_github $CAFFE_WINDOWS_INFO ; }
 function fetch_opencv(){ fetch_from_github $OPENCV_INFO; }
 function fetch_bzip2(){ fetch_bzip2_1_0_5 ; modify_bzip2_1_0_5 }
 
@@ -312,7 +313,7 @@ author: guyadong@gdface.net
     }
 }
 # 所有项目列表
-$all_names="7z msys2 mingw32 mingw64 cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd"
+$all_names="7z msys2 mingw32 mingw64 cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd caffe_windows"
 # 当前脚本名称
 $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载
