@@ -5,7 +5,8 @@ set(CMAKE_DEBUG_POSTFIX "d")
 
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREAD ON)
-set(Boost_USE_STATIC_RUNTIME OFF)
+# modified by guyadong
+#set(Boost_USE_STATIC_RUNTIME OFF)
 
 find_package(Boost COMPONENTS 
     date_time

@@ -120,24 +120,6 @@ if(HAVE_CUDA)
   list(REMOVE_ITEM Caffe_ALL_DEFINITIONS PRIVATE PUBLIC)
   list(APPEND CUDA_NVCC_FLAGS ${Caffe_ALL_DEFINITIONS})
 endif()
-# added by guyadong
-#if(MSVC)     
-#	add_definitions("/wd4819")		
-#	message(STATUS "optional:/wd4819")
-#	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-#	message(STATUS "optional:-D_CRT_SECURE_NO_WARNINGS")	
-#    # Use the static C library for all build types
-#    foreach(var 
-#    	CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
-#      	CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
-#      	CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-#      	CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO
-#      )
-#      if(${var} MATCHES "/MD")
-#        string(REGEX REPLACE "/MD" "/MT" ${var} "${${var}}")
-#      endif()
-#    endforeach()	
-#endif(MSVC)
 # ---[ Subdirectories
 add_subdirectory(src/gtest)
 add_subdirectory(src/caffe)

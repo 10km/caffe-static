@@ -121,11 +121,10 @@ function detect_compiler(){
             args_not_null_empty_undefined vscomntools_name
             $vscomntools_value=(ls env:$vscomntools_name -ErrorAction SilentlyContinue).value
             $vc_root=(Get-Item $([io.path]::Combine($vscomntools_value,'..','..','VC')) -ErrorAction SilentlyContinue).FullName
-            $cl_exe="$([io.path]::Combine($vc_root,'bin','cl.exe'))"
-            
+            $cl_exe="$([io.path]::Combine($vc_root,'bin','cl.exe'))"            
             if($vscomntools_value -and (Test-Path "$([io.path]::Combine($vc_root,'bin','cl.exe'))" -PathType Leaf)){
                 $BUILD_INFO.msvc_root=$vc_root
-                $BUILD_INFO.cmake_vars_define="-G ""NMake Makefiles"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"   
+                $BUILD_INFO.cmake_vars_define="-G ""NMake Makefiles"" -DCMAKE_BUILD_TYPE:STRING=RELEASE -DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
                 #$BUILD_INFO.cmake_vars_define="-G ""Visual Studio 14 2015 Win64"" "   
                 $m = $arg -match 'vs(\d+)'
                 $BUILD_INFO.vs_version=$Matches[1] 
@@ -245,7 +244,6 @@ function build_gflags(){
     remove_if_exist CMakeCache.txt
     remove_if_exist CMakeFiles
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$($project.install_path())"" 
-        -DCMAKE_USER_MAKE_RULES_OVERRIDE=$BIN_ROOT\compiler_flag_overrides.cmake
         -DBUILD_SHARED_LIBS=off         
 	    -DBUILD_STATIC_LIBS=on 
 	    -DBUILD_gflags_LIB=on 
@@ -527,8 +525,14 @@ function build_leveldb(){
     pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
     clean_folder build.gcc
     pushd build.gcc
+    if($BUILD_INFO.is_msvc()){
+        # MSVC 关闭编译警告
+        $c_flags='/wd4312 /EHsc'
+    }
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
-        -DBOOST_ROOT=$boost_root
+        -DBOOST_ROOT=`"$boost_root`"
+	    -DBoost_NO_SYSTEM_PATHS=on 
+        -DBoost_USE_STATIC_RUNTIME=on
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
@@ -746,7 +750,7 @@ function build_caffe([PSObject]$caffe){
     $lib_suffix=$(if($BUILD_INFO.is_msvc()){'.lib'}else{'.a'})
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
-        $c_flags='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /EHsc'
+        #$c_flags='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /EHsc'
     }
     #"$c_flags","$c_flags"
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
@@ -759,6 +763,8 @@ function build_caffe([PSObject]$caffe){
 	    -DBOOST_ROOT=`"$($BOOST_INFO.install_path())`" 
 	    -DBoost_NO_SYSTEM_PATHS=on 
         -DBoost_USE_STATIC_LIBS=on
+        -DBoost_USE_MULTITHREAD=on
+        -DBoost_USE_STATIC_RUNTIME=on
 	    -DSNAPPY_ROOT_DIR=`"$($SNAPPY_INFO.install_path())`"
 	    -DOpenCV_DIR=`"$opencv_cmake_dir`" 
 #        -DProtobuf_DIR=`"$($PROTOBUF_INFO.install_path().replace('\','/'))/cmake`"
@@ -850,7 +856,9 @@ $BUILD_INFO
 #build_leveldb_bureau14
 #build_openblas
 #build_lmdb
-
+if(! $names){
+    $names= $all_names
+}
 echo $names| foreach {    
     if( ! (Test-Path function:"build_$($_.ToLower())") -and !($_.StartsWith('caffe'))   ){
         echo "(不识别的项目名称)unknow project name:$_"

@@ -48,6 +48,7 @@ list(APPEND Caffe_LINKER_LIBS PUBLIC ${GFLAGS_LIBRARIES})
 include(cmake/ProtoBuf.cmake)
 
 # ---[ HDF5
+# modified guyadong
 #if(MSVC)
 #  # Find HDF5 using it's hdf5-config.cmake file with MSVC
 #  if(DEFINED HDF5_DIR)
