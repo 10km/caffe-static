@@ -157,13 +157,19 @@ $BZIP2_1_0_6_INFO= create_project_info @{
     package_suffix=".tar.gz"
 }
 
-$BOOST_INFO= create_project_info @{
+$BOOST_1_58_INFO= create_project_info @{
 	prefix="boost"
 	version="1.58.0"
 	md5="5a5d5614d9a07672e1ab2a250b5defc5"
     package_suffix=".tar.gz"
 }
-
+$BOOST_1_62_INFO= create_project_info @{
+	prefix="boost"
+	version="1.62.0"
+	md5="6f4571e7c5a66ccc3323da6c24be8f05"
+    package_suffix=".tar.gz"
+}
+$BOOST_INFO=$BOOST_1_62_INFO
 $HDF5_INFO= create_project_info @{
 	prefix="hdf5"
 	version="1.8.16"
