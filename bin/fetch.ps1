@@ -98,7 +98,7 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
         # 对 .exe 文件下载时改后缀为zip,以避免杀毒软件干扰
         $p=$(if($info.package_suffix -eq '.exe'){$package_path+'.zip'}else{$package_path}) 
         remove_if_exist $p
-		Invoke-WebRequest -Uri $uri -OutFile $p
+		Invoke-WebRequest -Uri $uri -OutFile $p -TimeoutSec 10
 		exit_on_error
         if($info.package_suffix -eq '.exe'){
             Rename-Item $p -NewName $package_path
@@ -251,6 +251,33 @@ function modify_ssd(){
     cp -Path (Join-Path -Path $PATCH_ROOT -ChildPath $SSD_INFO.folder) -Destination $SOURCE_ROOT -Recurse -Force -Verbose
 	exit_on_error 
 }
+# 基于 caffe 项目代码通用补丁函数
+function modify_caffe([PSObject]$caffe_base_project){
+    args_not_null_empty_undefined caffe_base_project
+	$caffe_root=Join-Path -Path $SOURCE_ROOT -ChildPath $caffe_base_project.folder
+    $cmakelists_root=Join-Path $caffe_root -ChildPath CMakeLists.txt
+    Write-Host "function:$($MyInvocation.MyCommand) ->  caffe 项目代码通用修复"
+    $content=Get-Content $cmakelists_root
+    $regex_disable_download='(^\s*include\s*\(\s*cmake/WindowsDownloadPrebuiltDependencies\.cmake\s*\))'
+    if( $content -match $regex_disable_download){
+        Write-Host "(禁止 Windows 预编译库下载) disable download prebuilt dependencies ($cmakelists_root)" 
+        $content -replace $regex_disable_download,'#deleted by guyadong,disable download prebuilt dependencies
+#$1'| Out-File $cmakelists_root -Encoding ascii -Force
+        exit_on_error
+    } 
+    $dependencies_cmake= [io.path]::combine( $caffe_root,'cmake','Dependencies.cmake')
+    $content=Get-Content $dependencies_cmake
+    $regex_hdf5='(^\s*set\s*\(\s*HDF5_\w+\s+hdf5\w*-)shared(\)\s*$)'
+    if($content -match $regex_hdf5){
+        Write-Host "(修正 hdf5 依赖库) use hdf5 static library ($dependencies_cmake)"
+        $content -replace $regex_hdf5,'#modified by guyadong,use static library
+$1static$2'| Out-File $dependencies_cmake -Encoding ascii -Force
+        exit_on_error 
+    }  
+	#echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $caffe_root"	
+    #cp -Path (Join-Path -Path $PATCH_ROOT -ChildPath $caffe_root.folder) -Destination $SOURCE_ROOT -Recurse -Force -Verbose
+	#exit_on_error 
+}
 ######################################################
 function modify_leveldb(){
     $leveldb_src=Join-Path -Path $SOURCE_ROOT -ChildPath $LEVELDB_INFO.folder
@@ -269,7 +296,13 @@ function modify_lmdb(){
     cp -Path ([io.path]::combine($PATCH_ROOT,$LMDB_INFO.folder,"*")) -Destination $lmdb_src -Force -Verbose
     exit_on_error
 }
-
+function modify_openblas(){
+    $openblas_src=Join-Path -Path $SOURCE_ROOT -ChildPath $OPENBLAS_INFO.folder
+    $patch_folder=Join-Path -Path $PATCH_ROOT -ChildPath $OPENBLAS_INFO.folder
+    echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $openblas_src"   
+    cp -Path $patch_folder -Destination $SOURCE_ROOT -Force -Verbose -Recurse
+    exit_on_error
+}
 
 function fetch_bzip2_1_0_5(){ fetch_from_github $BZIP2_INFO; }
 function fetch_protobuf(){ fetch_from_github $PROTOBUF_INFO ; }
@@ -278,9 +311,9 @@ function fetch_glog(){ fetch_from_github $GLOG_INFO ; }
 function fetch_leveldb(){ fetch_from_github $LEVELDB_INFO ; modify_leveldb }
 function fetch_lmdb(){ fetch_from_github $LMDB_INFO ; modify_lmdb }
 function fetch_snappy(){ fetch_from_github $SNAPPY_INFO; modify_snappy ; }
-function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; }
+function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; modify_openblas}
 function fetch_ssd(){ fetch_from_github $SSD_INFO ; modify_ssd; }
-function fetch_caffe_windows(){ fetch_from_github $CAFFE_WINDOWS_INFO ; }
+function fetch_caffe_windows(){ fetch_from_github $CAFFE_WINDOWS_INFO ; modify_caffe $CAFFE_WINDOWS_INFO}
 function fetch_opencv(){ fetch_from_github $OPENCV_INFO; }
 function fetch_bzip2(){ fetch_bzip2_1_0_5 ; modify_bzip2_1_0_5 }
 
