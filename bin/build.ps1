@@ -14,7 +14,7 @@ param(
 [switch]$help
 )
 # 所有项目列表字符串数组
-$all_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf ssd caffe_windows".Trim() -split '\s+'
+$all_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf caffe_windows".Trim() -split '\s+'
 # 当前脚本名称
 $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 用命令行输入的参数初始化 $BUILD_INFO 变量 [PSObject]
@@ -82,11 +82,7 @@ Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name is_gcc -Value
 # 如果没找到返回空 
 function where_first($who){
     args_not_null_empty_undefined who    
-    cmd /c "where $who >nul 2>nul"
-    if($?){
-        $w=$(cmd /c "where $who")
-        if($w.Count -gt 1){$w[0]}else{$w}
-    }
+    (get-command gcc  -ErrorAction SilentlyContinue| Select-Object Definition -First 1).Definition
 }
 
 # 测试 gcc 编译器($gcc_compiler)是否能生成$arch指定的代码(32/64位)
@@ -153,16 +149,16 @@ function detect_compiler(){
                 $BUILD_INFO.gcc_location= (Get-Item $gcc_exe).Directory
                 $BUILD_INFO.gcc_c_compiler=$gcc_exe
                 $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath 'g++.exe'
+                exit_if_not_exist $BUILD_INFO.gcc_cxx_compiler -type Leaf -msg "not found g++ in $BUILD_INFO.gcc_location"
                 $BUILD_INFO.cmake_vars_define="-G ""MinGW Makefiles"" -DCMAKE_C_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_c_compiler)"" -DCMAKE_CXX_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_cxx_compiler)"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"
                 $BUILD_INFO.exe_linker_flags='-static -static-libstdc++ -static-libgcc'
                 # 寻找 mingw32 中的 make.exe，一般名为 mingw32-make
-                $find=(ls $BUILD_INFO.gcc_location -Filter *make.exe).BaseName
-                if(!$find.Count){
+                $find=(ls $BUILD_INFO.gcc_location -Filter *make.exe|Select-Object -Property BaseName|Select-Object -First 1 ).BaseName
+                if(!$find){
                     throw "这是什么鬼?没有找到make工具啊(not found make tools)"
-                }elseif($find.Count -eq 1){
-                    $BUILD_INFO.make_exe=$find
                 }else{
-                    $BUILD_INFO.make_exe=$find[0]
+                    $BUILD_INFO.make_exe=$find
+                    Write-Host "make tools:" $BUILD_INFO.make_exe -ForegroundColor Yellow
                 }                
                 args_not_null_empty_undefined MAKE_JOBS
                 $BUILD_INFO.make_exe_option="-j $MAKE_JOBS"
