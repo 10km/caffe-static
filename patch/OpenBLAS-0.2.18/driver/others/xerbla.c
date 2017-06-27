@@ -39,13 +39,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "common.h"
-// modified by guyadong
+// modified by guyadong,disable to link libmsvcrt.a if define USE_FOR_MSVC
+// _cprintf defined in libmsvcrt.a
 #if defined(OS_WINDOWS) && (defined(__MINGW32__) || defined(__MINGW64__)) && ! defined(USE_FOR_MSVC)
 #include <conio.h>
 #undef  printf
 #define printf	_cprintf
-#else
-#pragma message( "!!!!!!!!!!!!!!!!!!!!!!!!user for msvc compiler " )
 #endif
 
 #ifdef __ELF__

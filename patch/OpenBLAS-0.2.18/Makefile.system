@@ -241,7 +241,8 @@ endif
 ifeq ($(OSNAME), WINNT)
 NEED_PIC = 0
 NO_EXPRECISION = 1
-# modified by guyadong
+# modified by guyadong,
+# see also driver/others/memory.c xerbla.c
 ifdef USE_FOR_MSVC
 CCOMMON_OPT	+= -DUSE_FOR_MSVC
 endif

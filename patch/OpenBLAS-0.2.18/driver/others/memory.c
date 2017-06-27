@@ -112,13 +112,12 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/sysctl.h>
 #include <sys/resource.h>
 #endif
-// modified by guyadong
+// modified by guyadong,disable to link libmsvcrt.a if define USE_FOR_MSVC
+// _cprintf defined in libmsvcrt.a
 #if defined(OS_WINDOWS) && (defined(__MINGW32__) || defined(__MINGW64__)) && ! defined(USE_FOR_MSVC)
 #include <conio.h>
 #undef  printf
 #define printf	_cprintf
-#else
-#pragma message( "!!!!!!!!!!!!!!!!!!!!!!!!user for msvc compiler " )
 #endif
 
 #ifdef OS_LINUX

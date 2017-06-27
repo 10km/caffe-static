@@ -12,7 +12,8 @@ OPENBLAS_BUILD_DIR := $(CURDIR)
 OPENBLAS_CMAKE_DIR := $(OPENBLAS_LIBRARY_DIR)/cmake/openblas
 OPENBLAS_CMAKE_CONFIG := OpenBLASConfig.cmake
 OPENBLAS_CMAKE_CONFIG_VERSION := OpenBLASConfigVersion.cmake
-#modified guyadong
+#modified guyadong,
+#for add libgcc.a to ${OpenBLAS_LIBRARIES} in OpenBLASConfig.cmake 
 ifdef USE_FOR_MSVC
 LIBGCC_LOCATION := $(shell $(CC) -print-libgcc-file-name)
 endif
