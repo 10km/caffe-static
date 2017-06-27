@@ -566,14 +566,16 @@ function build_openblas(){
     # 不用 msys2_shell.cmd 执行脚本是因为返回的exit code总是0，无法判断脚本是否正确执行
     #$msys2bash=[io.path]::Combine($MSYS2_INSTALL_LOCATION,'msys2_shell.cmd')
     $install_path=unix_path($project.install_path())
+    #  USE_FOR_MSVC 宏定义用于控制编译 openblas 静态库代码时不使用 libmsvcrt.a 中的函数
+    #　参见 $openblase_source/Makefile.system 中 USE_FOR_MSVC 定义说明    
+    $use_for_msvc=$(if($BUILD_INFO.is_msvc()){$use_for_msvc=' export USE_FOR_MSVC=1 ; '}else{''})
     args_not_null_empty_undefined MAKE_JOBS
     remove_if_exist "$install_path"
     # MSYS2 下的gcc 编译脚本 (bash)
     # 任何一步出错即退出脚本 exit code = -1
     # 每一行必须 ; 号结尾(最后一行除外)
     # #号开头注释行会被 combine_multi_line 函数删除，不会出现在运行脚本中
-    $bashcmd="export PATH=$(unix_path($mingw_bin)):`$PATH ;
-        export USE_FOR_MSVC=1;
+    $bashcmd="export PATH=$(unix_path($mingw_bin)):`$PATH ;$use_for_msvc
         # 切换到 OpenBLAS 源码文件夹 
         cd $(unix_path $src_root) ; 
         # 先执行make clean
@@ -612,6 +614,7 @@ function build_lmdb(){
     popd
 }
 # 检查指定的组件是否已经编译安装
+# 如果缺少，则将错误信息添加到 $error_msg 
 function check_component([string]$folder,[PSObject]$info,[ref][string[]]$error_msg){
     args_not_null_empty_undefined folder info error_msg
     $null=(! (exist_file $folder)) -and ( $error_msg.Value+="(缺少 $($info.prefix) ),not found $folder,please run build.ps1 $($info.prefix)")
@@ -706,6 +709,8 @@ function build_caffe([PSObject]$caffe){
         throw "not project caffe based $caffe"
     }
     $install_path=$caffe.install_path()
+    # 调用 check_component 函数依次检查编译 caffe 所需的依赖库是否齐全
+    # 保存错误信息的数组,调用check_component时如果有错，错误保存到数组
     [string[]]$error_message=@()
     check_component $GFLAGS_INFO.install_path() $GFLAGS_INFO ([ref]$error_message)
     check_component $GLOG_INFO.install_path() $GLOG_INFO ([ref]$error_message)
@@ -721,9 +726,9 @@ function build_caffe([PSObject]$caffe){
     check_component $LMDB_INFO.install_path() $LMDB_INFO ([ref]$error_message)
     check_component $LEVELDB_INFO.install_path() $LEVELDB_INFO ([ref]$error_message)
     # opencv 配置文件(OpenCVConfig.cmake)所在路径
-    #$opencv_cmake_dir="$($OPENCV_INFO.install_path())/x64/vc14/staticlib"
     $opencv_cmake_dir="$($OPENCV_INFO.install_path())"
     check_component $opencv_cmake_dir $OPENCV_INFO ([ref]$error_message)
+    # 缺少依赖库时报错退出
     if($error_message.count){
         Write-Host ($error_message -join '`n') -ForegroundColor Yellow
         exit -1
@@ -747,12 +752,13 @@ function build_caffe([PSObject]$caffe){
     $lib_suffix=$(if($BUILD_INFO.is_msvc()){'.lib'}else{'.a'})
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
-        #$c_flags='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /EHsc'
+        $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
     }
-    # 宏定义 /DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES 用于解决glog 连接报错
-    $env:CXXFLAGS='/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES /wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
-    $env:CFLAGS  ='/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES /wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
+    # 宏定义 /DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES 用于解决 glog 连接报错
+    $env:CXXFLAGS="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
+    $env:CFLAGS  ="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+# 关闭 windows 版预编译库下载
         -DCOPY_PREREQUISITES=off
         -DINSTALL_PREREQUISITES=off
 	    -DGLOG_ROOT_DIR=`"$($GLOG_INFO.install_path())`"
@@ -766,12 +772,12 @@ function build_caffe([PSObject]$caffe){
         -DBoost_USE_STATIC_RUNTIME=on
 	    -DSNAPPY_ROOT_DIR=`"$($SNAPPY_INFO.install_path())`"
 	    -DOpenCV_DIR=`"$opencv_cmake_dir`" 
-#        -DProtobuf_DIR=`"$($PROTOBUF_INFO.install_path().replace('\','/'))/cmake`"
-        -DProtobuf_DIR=`"$($PROTOBUF_INFO.install_path())\cmake`"
+        -DProtobuf_DIR=`"$(Join-Path $PROTOBUF_INFO.install_path() -ChildPath cmake)`"
 	    -DPROTOBUF_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf$lib_suffix" )`"
 	    -DPROTOBUF_PROTOC_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotoc$lib_suffix")`"
 	    -DPROTOBUF_LITE_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf-lite$lib_suffix")`"
 	    -DPROTOBUF_PROTOC_EXECUTABLE=`"$([io.path]::Combine($($PROTOBUF_INFO.install_path()),'bin','protoc.exe'))`"
+# PROTOBUF_INCLUDE_DIR 提供的路径分隔符必须是/,否则会引起 cmake 报错
 	    -DPROTOBUF_INCLUDE_DIR=`"$($PROTOBUF_INFO.install_path().replace('\','/'))/include`"
 	    -DCPU_ONLY=ON 
 	    -DBLAS=Open 
