@@ -3,7 +3,6 @@ set(Caffe_LINKER_LIBS "")
 set(Caffe_INCLUDE_DIRS "")
 set(Caffe_DEFINITIONS "")
 set(Caffe_COMPILE_OPTIONS "")
-
 # ---[ Boost
 find_package(Boost 1.54 REQUIRED COMPONENTS system thread filesystem)
 list(APPEND Caffe_INCLUDE_DIRS PUBLIC ${Boost_INCLUDE_DIRS})
@@ -49,20 +48,21 @@ include(cmake/ProtoBuf.cmake)
 
 # ---[ HDF5
 # modified guyadong
-#if(MSVC)
-#  # Find HDF5 using it's hdf5-config.cmake file with MSVC
-#  if(DEFINED HDF5_DIR)
-#    list(APPEND CMAKE_MODULE_PATH ${HDF5_DIR})
-#  endif()
-#  find_package(HDF5 COMPONENTS C HL REQUIRED)
+if(MSVC)
+  # Find HDF5 using it's hdf5-config.cmake file with MSVC
+  if(DEFINED HDF5_DIR)
+    list(APPEND CMAKE_MODULE_PATH ${HDF5_DIR})
+  endif()
+  find_package(HDF5 COMPONENTS C HL REQUIRED)
+  set(HDF5_LIBRARIES hdf5-static)
+  set(HDF5_HL_LIBRARIES hdf5_hl-static)  
 #  set(HDF5_LIBRARIES hdf5-shared)
 #  set(HDF5_HL_LIBRARIES hdf5_hl-shared)
-#else()
+else()
   find_package(HDF5 COMPONENTS HL REQUIRED)
-#endif()
+endif()
 list(APPEND Caffe_INCLUDE_DIRS PUBLIC ${HDF5_INCLUDE_DIRS})
 list(APPEND Caffe_LINKER_LIBS PUBLIC ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
-
 # ---[ LMDB
 if(USE_LMDB)
   find_package(LMDB REQUIRED)

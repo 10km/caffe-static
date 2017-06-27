@@ -400,7 +400,7 @@ function build_hdf5(){
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
     popd
-    rm  build.gcc -Force -Recurse
+    #rm  build.gcc -Force -Recurse
     popd
 }
 # 静态编译 snappy 源码
@@ -573,6 +573,7 @@ function build_openblas(){
     # 每一行必须 ; 号结尾(最后一行除外)
     # #号开头注释行会被 combine_multi_line 函数删除，不会出现在运行脚本中
     $bashcmd="export PATH=$(unix_path($mingw_bin)):`$PATH ;
+        export USE_FOR_MSVC=1;
         # 切换到 OpenBLAS 源码文件夹 
         cd $(unix_path $src_root) ; 
         # 先执行make clean
@@ -748,7 +749,9 @@ function build_caffe([PSObject]$caffe){
         # MSVC 关闭编译警告
         #$c_flags='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /EHsc'
     }
-    #"$c_flags","$c_flags"
+    # 宏定义 /DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES 用于解决glog 连接报错
+    $env:CXXFLAGS='/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES /wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
+    $env:CFLAGS  ='/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES /wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DCOPY_PREREQUISITES=off
         -DINSTALL_PREREQUISITES=off
@@ -759,7 +762,7 @@ function build_caffe([PSObject]$caffe){
 	    -DBOOST_ROOT=`"$($BOOST_INFO.install_path())`" 
 	    -DBoost_NO_SYSTEM_PATHS=on 
         -DBoost_USE_STATIC_LIBS=on
-        -DBoost_USE_MULTITHREAD=on
+#        -DBoost_USE_MULTITHREADED=on
         -DBoost_USE_STATIC_RUNTIME=on
 	    -DSNAPPY_ROOT_DIR=`"$($SNAPPY_INFO.install_path())`"
 	    -DOpenCV_DIR=`"$opencv_cmake_dir`" 
@@ -780,6 +783,8 @@ function build_caffe([PSObject]$caffe){
 	    -DUSE_LMDB=on 
 	    -DUSE_OPENCV=on  2>&1" 
     cmd /c $cmd
+    $env:CXXFLAGS=''
+    $env:CFLAGS=''
     exit_on_error
     # 修改所有 link.txt 删除-lstdc++ 选项，保证静态连接libstdc++库,否则在USE_OPENCV=on的情况下，libstdc++不会静态链接
     if($BUILD_INFO.is_gcc()){
@@ -793,7 +798,7 @@ function build_caffe([PSObject]$caffe){
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
     popd
-    rm  build.gcc -Force -Recurse
+    #rm  build.gcc -Force -Recurse
     popd
 }
 # 输出帮助信息
