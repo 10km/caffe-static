@@ -251,8 +251,9 @@ function modify_ssd(){
     cp -Path (Join-Path -Path $PATCH_ROOT -ChildPath $SSD_INFO.folder) -Destination $SOURCE_ROOT -Recurse -Force -Verbose
 	exit_on_error 
 }
-# 基于 caffe 项目代码通用补丁函数
-function modify_caffe([PSObject]$caffe_base_project){
+# 基于 caffe 项目代码通用补丁函数, 
+# 所有 caffe 系列项目fetch后 应先调用此函数做修补
+function modify_caffe_base([PSObject]$caffe_base_project){
     args_not_null_empty_undefined caffe_base_project
 	$caffe_root=Join-Path -Path $SOURCE_ROOT -ChildPath $caffe_base_project.folder
     $cmakelists_root=Join-Path $caffe_root -ChildPath CMakeLists.txt
@@ -274,9 +275,9 @@ function modify_caffe([PSObject]$caffe_base_project){
 $1static$2'| Out-File $dependencies_cmake -Encoding ascii -Force
         exit_on_error 
     }  
-	#echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $caffe_root"	
-    #cp -Path (Join-Path -Path $PATCH_ROOT -ChildPath $caffe_root.folder) -Destination $SOURCE_ROOT -Recurse -Force -Verbose
-	#exit_on_error 
+	echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $caffe_root"	
+    cp -Path ([io.path]::Combine($PATCH_ROOT,'caffe_base','*')) -Destination $caffe_root -Recurse -Force -Verbose    
+	exit_on_error 
 }
 ######################################################
 function modify_leveldb(){
@@ -313,7 +314,7 @@ function fetch_lmdb(){ fetch_from_github $LMDB_INFO ; modify_lmdb }
 function fetch_snappy(){ fetch_from_github $SNAPPY_INFO; modify_snappy ; }
 function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; modify_openblas}
 function fetch_ssd(){ fetch_from_github $SSD_INFO ; modify_ssd; }
-function fetch_caffe_windows(){ fetch_from_github $CAFFE_WINDOWS_INFO ; modify_caffe $CAFFE_WINDOWS_INFO}
+function fetch_caffe_windows(){ fetch_from_github $CAFFE_WINDOWS_INFO ; modify_caffe_base $CAFFE_WINDOWS_INFO}
 function fetch_opencv(){ fetch_from_github $OPENCV_INFO; }
 function fetch_bzip2(){ fetch_bzip2_1_0_5 ; modify_bzip2_1_0_5 }
 
