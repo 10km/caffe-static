@@ -568,7 +568,7 @@ function build_openblas(){
     $install_path=unix_path($project.install_path())
     #  USE_FOR_MSVC 宏定义用于控制编译 openblas 静态库代码时不使用 libmsvcrt.a 中的函数
     #　参见 $openblase_source/Makefile.system 中 USE_FOR_MSVC 定义说明    
-    $use_for_msvc=$(if($BUILD_INFO.is_msvc()){$use_for_msvc=' export USE_FOR_MSVC=1 ; '}else{''})
+    $use_for_msvc=$(if($BUILD_INFO.is_msvc()){' export USE_FOR_MSVC=1 ; '}else{''})
     args_not_null_empty_undefined MAKE_JOBS
     remove_if_exist "$install_path"
     # MSYS2 下的gcc 编译脚本 (bash)
@@ -577,7 +577,7 @@ function build_openblas(){
     # #号开头注释行会被 combine_multi_line 函数删除，不会出现在运行脚本中
     $bashcmd="export PATH=$(unix_path($mingw_bin)):`$PATH ;$use_for_msvc
         # 切换到 OpenBLAS 源码文件夹 
-        cd $(unix_path $src_root) ; 
+        cd `"$(unix_path $src_root)`" ; 
         # 先执行make clean
         echo start make clean,please waiting...;
         $mingw_make clean ;
@@ -586,7 +586,7 @@ function build_openblas(){
         $mingw_make -j $MAKE_JOBS BINARY=$BINARY NOFORTRAN=1 NO_LAPACKE=1 NO_SHARED=1 ; 
         if [ ! `$? ];then exit -1;fi;
         # 安装到 $install_path 指定的位置
-        $mingw_make install PREFIX=$install_path NO_LAPACKE=1 NO_SHARED=1"
+        $mingw_make install PREFIX=`"$install_path`" NO_LAPACKE=1 NO_SHARED=1"
     $cmd=combine_multi_line "$msys2bash -l -c `"$bashcmd`" 2>&1"
     #$cmd="$msys2bash -where $src_root -l -c `"$bashcmd`" 2>&1"
     Write-Host "(OpenBLAS 编译中...)compiling OpenBLAS by MinGW $mingw_version ($mingw_bin)" -ForegroundColor Yellow
@@ -745,8 +745,9 @@ function build_caffe([PSObject]$caffe){
     # GLOG_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGlog.cmake
     # GFLAGS_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGFlags.cmake
     # HDF5_ROOT 参见 https://cmake.org/cmake/help/v3.8/module/FindHDF5.html
-    # BOOST_ROOT,Boost_NO_SYSTEM_PATHS 参见 https://cmake.org/cmake/help/v3.8/module/FindBoost.html
+    # BOOST_ROOT,Boost_NO_SYSTEM_PATHS Boost_USE_STATIC_LIBS Boost_USE_STATIC_RUNTIME 参见 https://cmake.org/cmake/help/v3.8/module/FindBoost.html
     # SNAPPY_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindSnappy.cmake
+    # COPY_PREREQUISITES=off 关闭 windows 版预编译库下载 参见 $caffe_source/CMakeLists.txt
     # PROTOBUF_LIBRARY,PROTOBUF_PROTOC_LIBRARY... 参见 https://cmake.org/cmake/help/v3.8/module/FindProtobuf.html
     # OpenCV_DIR 参见https://cmake.org/cmake/help/v3.8/command/find_package.html
     $lib_suffix=$(if($BUILD_INFO.is_msvc()){'.lib'}else{'.a'})
@@ -758,7 +759,6 @@ function build_caffe([PSObject]$caffe){
     $env:CXXFLAGS="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
     $env:CFLAGS  ="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
-# 关闭 windows 版预编译库下载
         -DCOPY_PREREQUISITES=off
         -DINSTALL_PREREQUISITES=off
 	    -DGLOG_ROOT_DIR=`"$($GLOG_INFO.install_path())`"
@@ -768,7 +768,6 @@ function build_caffe([PSObject]$caffe){
 	    -DBOOST_ROOT=`"$($BOOST_INFO.install_path())`" 
 	    -DBoost_NO_SYSTEM_PATHS=on 
         -DBoost_USE_STATIC_LIBS=on
-#        -DBoost_USE_MULTITHREADED=on
         -DBoost_USE_STATIC_RUNTIME=on
 	    -DSNAPPY_ROOT_DIR=`"$($SNAPPY_INFO.install_path())`"
 	    -DOpenCV_DIR=`"$opencv_cmake_dir`" 
