@@ -802,6 +802,25 @@ author: guyadong@gdface.net
 "
     }
 }
+# 确保 $input 中的字符串不重复且顺序与 $available_names 中的一致,
+# 不包含在 $available_names 中的字符串加在最后
+function sorted_project([string[]]$available_names){
+    args_not_null_empty_undefined available_names
+    $pipeline_data = @($Input)
+    $unique_input=$pipeline_data |Sort-Object | Get-Unique
+    $sorted_names=@()
+    $available_names | foreach{
+        if($unique_input -contains $_){
+            $sorted_names+=$_
+        }
+    }
+    $pipeline_data|foreach{
+        if($sorted_names -notcontains $_){
+            $sorted_names+=$_
+        }
+    }
+    $sorted_names
+}
 # 所有项目列表字符串数组
 $all_project_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf caffe_windows".Trim() -split '\s+'
 # 当前脚本名称
@@ -831,6 +850,8 @@ $BUILD_INFO
 if(! $names){
     $names= $all_project_names
 }
+# 因为各个项目之间有前后依赖关系,所以这里对输入的名字顺序重新排列，确保正确的依赖关系
+$names=$names | sorted_project $all_project_names
 echo $names| foreach {    
     if( ! (Test-Path function:"build_$($_.ToLower())") -and !($_.StartsWith('caffe'))   ){
         echo "(不识别的项目名称)unknow project name:$_"
@@ -863,6 +884,5 @@ echo $names| foreach {
         build_caffe(Get-Variable "$($_.ToLower())_INFO" -ValueOnly)
     }else{
         &build_$($_.ToLower())      
-    }  
-    
+    }     
 }
