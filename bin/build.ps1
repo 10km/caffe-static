@@ -11,7 +11,9 @@ param(
 [string]$arch='auto',
 [string]$gcc=$DEFAULT_GCC,
 [switch]$revert,
+[switch]$msvcrt,
 [switch]$jom,
+[switch]$buildReserved,
 [switch]$help
 )
 
@@ -29,6 +31,8 @@ $BUILD_INFO=New-Object PSObject -Property @{
     msvc_root=""
     # Visual Studio 版本号 (2013/2015...)
     vs_version=""
+    # MSVC 连接选项使用 /MD
+    msvcrt=$msvcrt
     # gcc安装路径 如:P:\MinGW\mingw64\bin
     gcc_location=$gcc
     # gcc版本号
@@ -51,7 +55,7 @@ $BUILD_INFO=New-Object PSObject -Property @{
     # make 工具编译时的默认选项
     make_exe_option=""
     # 项目编译成功后是否清除 build文件夹
-    remove_build=$true
+    remove_build=!$buildReserved
 }
 # $BUILD_INFO 成员方法 
 # 生成调用 cmake 时的默认命令行参数
@@ -157,7 +161,7 @@ function detect_compiler(){
                 $BUILD_INFO.msvc_root=$vc_root
                 if($BUILD_INFO.nmake_parallel){
                     exit_if_not_exist $JOM_INFO.root -type Container -msg '(没有安装 jom),not found jom,please install it by running ./fetch.ps1 jom'
-                    $makeType='NMake Makefiles JOM'
+                    $generator='NMake Makefiles JOM'
                     $BUILD_INFO.make_exe='jom'
                     args_not_null_empty_undefined MAKE_JOBS
                     $BUILD_INFO.make_exe_option="-j $MAKE_JOBS"
@@ -165,7 +169,10 @@ function detect_compiler(){
                     $generator='NMake Makefiles'
                     $BUILD_INFO.make_exe='nmake'
                 }
-                $BUILD_INFO.cmake_vars_define="-G `"$generator`" -DCMAKE_BUILD_TYPE:STRING=RELEASE -DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
+                if(! $BUILD_INFO.msvcrt){
+                    $cmake_user_make_rules_override="-DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
+                }                
+                $BUILD_INFO.cmake_vars_define="-G `"$generator`" -DCMAKE_BUILD_TYPE:STRING=RELEASE $cmake_user_make_rules_override"   
                 #$BUILD_INFO.cmake_vars_define="-G ""Visual Studio 14 2015 Win64"" "   
                 $null = $arg -match 'vs(\d+)'
                 $BUILD_INFO.vs_version=$Matches[1] 
@@ -396,6 +403,11 @@ function build_boost(){
     }elseif($BUILD_INFO.compiler -eq 'vs2015'){
         $toolset='--toolset=msvc-14.0'
     }
+    if($BUILD_INFO.is_msvc()){
+        $runtime_link="runtime-link=$(if($BUILD_INFO.msvcrt){'shared'}else{'static'})"
+    }else{
+        $runtime_link='runtime-link=static'
+    }
     # --prefix 指定安装位置
     # --debug-configuration 编译时显示加载的配置信息
     # -q 参数指示出错就停止编译
@@ -405,7 +417,7 @@ function build_boost(){
     # -jx 并发编译线程数
     Write-Host "boost compiling..." -ForegroundColor Yellow
     args_not_null_empty_undefined MAKE_JOBS
-    $cmd=combine_multi_line "bjam --prefix=$install_path $address_model $toolset -a -q -d+3 -j$MAKE_JOBS --debug-configuration $toolset link=static runtime-link=static install 
+    $cmd=combine_multi_line "bjam --prefix=$install_path $address_model $toolset -a -q -d+3 -j$MAKE_JOBS --debug-configuration $toolset link=static $runtime_link install 
         --with-date_time
         --with-system
         --with-thread
@@ -780,6 +792,8 @@ function print_help(){
     -g,-gcc         指定MingGW编译器的安装路径(bin文件夹),指定此值后，编译器类型(-compiler)自动设置为gcc
     -r,-revert      对项目强制执行fetch,将项目代码恢复到初始状态 
     -j,-jom         使用jom并行编译,CPU满功率运行,比nmake提高数倍的速度,仅在使用MSVC编译时有效
+    -msvcrt         MSVC编译时使用 /MD 连接选项,默认 /MT
+    -buildReserved  保存编译生成工程文件及中间文件
 	-h,-help        显示帮助信息
 作者: guyadong@gdface.net
 "
@@ -797,6 +811,8 @@ options:
                     the '-compiler' option will be overwrited  to 'gcc' if this option defined 
     -r,-revert      force fetch the project,revert source code
     -j,-jom         jom parallel build with multiple CPU,effective only when MSVC
+    -msvcrt         use /MD link option,default /MT ,effective only when MSVC
+    -buildReserved  reserve thd build folder while project building finished
 	-h,-help        print the message
 author: guyadong@gdface.net
 "

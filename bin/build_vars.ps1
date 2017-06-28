@@ -19,10 +19,13 @@ function get_os_processor(){
 }
 # 生成安装路径名后缀
 function install_suffix([string]$prefix){
-	#args_not_null_empty_undefined prefix HOST_OS HOST_PROCESSOR
-	#return "${prefix}_${HOST_OS}_${HOST_PROCESSOR}"
     args_not_null_empty_undefined prefix HOST_OS BUILD_INFO
-    return "${prefix}_${HOST_OS}_$($BUILD_INFO.compiler)_$($BUILD_INFO.arch)"
+    if($BUILD_INFO.is_msvc()){
+        $link=$(if($BUILD_INFO.msvcrt){'_md'}else{'_mt'})
+    }else{
+        $link=''
+    }    
+    return "${prefix}_${HOST_OS}_$($BUILD_INFO.compiler)_$($BUILD_INFO.arch)$link"
 }
 # 根据哈希表提供的信息创建project info对象
 function create_project_info([hashtable]$hash,[switch]$no_install_path){
