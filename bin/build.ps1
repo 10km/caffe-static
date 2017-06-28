@@ -31,6 +31,8 @@ $BUILD_INFO=New-Object PSObject -Property @{
     msvc_root=""
     # Visual Studio 版本号 (2013/2015...)
     vs_version=""
+    vc_version=@{ 'vs2013'='vc120' 
+                  'vs2015'='vc140'}
     # MSVC 连接选项使用 /MD
     msvcrt=$msvcrt
     # gcc安装路径 如:P:\MinGW\mingw64\bin
@@ -201,7 +203,7 @@ function detect_compiler(){
                 $BUILD_INFO.gcc_location= (Get-Item $gcc_exe).Directory
                 $BUILD_INFO.gcc_c_compiler=$gcc_exe
                 $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath 'g++.exe'
-                exit_if_not_exist $BUILD_INFO.gcc_cxx_compiler -type Leaf -msg "not found g++ in $BUILD_INFO.gcc_location"
+                exit_if_not_exist $BUILD_INFO.gcc_cxx_compiler -type Leaf -msg "(没找到g++编译器)not found g++ in $BUILD_INFO.gcc_location"
                 $BUILD_INFO.cmake_vars_define="-G ""MinGW Makefiles"" -DCMAKE_C_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_c_compiler)"" -DCMAKE_CXX_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_cxx_compiler)"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"
                 $BUILD_INFO.exe_linker_flags='-static -static-libstdc++ -static-libgcc'
                 # 寻找 mingw32 中的 make.exe，一般名为 mingw32-make
