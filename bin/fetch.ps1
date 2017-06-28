@@ -60,7 +60,9 @@ function need_download([string]$file,[string]$md5){
 	}
 }
 # 下载并解压指定的项目文件
-function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$SOURCE_ROOT,[string]$sourceRoot=$PACKAGE_ROOT,[string]$md5Name,[string]$versionName,[switch]$noUnpack){
+# $noUnpack 下载但不执行解压
+# $noFolder 压缩包不是独立子文件夹结构
+function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$SOURCE_ROOT,[string]$sourceRoot=$PACKAGE_ROOT,[string]$md5Name,[string]$versionName,[switch]$noUnpack,[switch]$noFolder){
 	args_not_null_empty_undefined info uri
     if($md5Name){
         $md5=$info."$md5Name"
@@ -110,10 +112,10 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
             exit -1
         }
 	}
-    if(!$noUnpack){        
+    if(!$noUnpack){
 	    remove_if_exist (Join-Path $targetRoot $info.folder)
 	    Write-Host "(解压缩)extracting file from $package_path" -ForegroundColor Yellow
-	    unpack $package_path -targetFolder $targetRoot	
+	    unpack $package_path -targetFolder $(if($noFolder){$(Join-Path $targetRoot -ChildPath $info.folder )}else{$targetRoot})	
     }
 }
 # 从github上下载源码
@@ -159,6 +161,11 @@ function fetch_hdf5(){
 function fetch_cmake(){
     $uri= "https://cmake.org/files/v3.8/$($CMAKE_INFO.folder)$($CMAKE_INFO.package_suffix)"
     download_and_extract -info $CMAKE_INFO -uri $uri -targetRoot $TOOLS_ROOT	
+}
+# 下载 jom 压缩包解压到 $TOOLS_ROOT
+function fetch_jom(){
+    $uri="http://download.qt.io/official_releases/$($JOM_INFO.prefix)/$($JOM_INFO.prefix)_$($JOM_INFO.version.Replace('.','_'))$($JOM_INFO.package_suffix)"
+    download_and_extract -info $JOM_INFO -uri $uri -targetRoot $TOOLS_ROOT -noFolder
 }
 # 下载 mingw32 (MinGW 32位编译器) 压缩包解压到 $TOOLS_ROOT
 function fetch_mingw32(){
@@ -348,7 +355,7 @@ author: guyadong@gdface.net
     }
 }
 # 所有项目列表
-$all_names="7z msys2 mingw32 mingw64 cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd caffe_windows".Trim() -split '\s+'
+$all_names="7z msys2 mingw32 mingw64 jom cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd caffe_windows".Trim() -split '\s+'
 # 当前脚本名称
 $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载

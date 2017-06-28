@@ -11,6 +11,7 @@ param(
 [string]$arch='auto',
 [string]$gcc=$DEFAULT_GCC,
 [switch]$revert,
+[switch]$jom,
 [switch]$help
 )
 
@@ -46,6 +47,7 @@ $BUILD_INFO=New-Object PSObject -Property @{
     exe_linker_flags=""
     # make 工具文件名,msvc为nmake,mingw为make 
     make_exe=""
+    nmake_parallel=$jom
     # make 工具编译时的默认选项
     make_exe_option=""
     # 项目编译成功后是否清除 build文件夹
@@ -153,11 +155,22 @@ function detect_compiler(){
             $cl_exe="$([io.path]::Combine($vc_root,'bin','cl.exe'))"            
             if($vscomntools_value -and (Test-Path "$([io.path]::Combine($vc_root,'bin','cl.exe'))" -PathType Leaf)){
                 $BUILD_INFO.msvc_root=$vc_root
-                $BUILD_INFO.cmake_vars_define="-G ""NMake Makefiles"" -DCMAKE_BUILD_TYPE:STRING=RELEASE -DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
+                if($BUILD_INFO.nmake_parallel){
+                    exit_if_not_exist $JOM_INFO.root -type Container -msg '(没有安装 jom),not found jom,please install it by running ./fetch.ps1 jom'
+                    $makeType='NMake Makefiles JOM'
+                    $BUILD_INFO.make_exe='jom'
+                    args_not_null_empty_undefined MAKE_JOBS
+                    $BUILD_INFO.make_exe_option="-j $MAKE_JOBS"
+                }else{
+                    $makeType='NMake Makefiles'
+                    $BUILD_INFO.make_exe='nmake'
+                }
+                #$BUILD_INFO.cmake_vars_define="-G ""NMake Makefiles"" -DCMAKE_BUILD_TYPE:STRING=RELEASE -DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
+                $BUILD_INFO.cmake_vars_define="-G `"$makeType`" -DCMAKE_BUILD_TYPE:STRING=RELEASE -DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
                 #$BUILD_INFO.cmake_vars_define="-G ""Visual Studio 14 2015 Win64"" "   
-                $m = $arg -match 'vs(\d+)'
+                $null = $arg -match 'vs(\d+)'
                 $BUILD_INFO.vs_version=$Matches[1] 
-                $BUILD_INFO.make_exe="nmake"  
+                  
                 return $arg
             }
         }
@@ -241,6 +254,12 @@ function init_build_info(){
 function make_msvc_env(){
     args_not_null_empty_undefined BUILD_INFO
     if( $env:MSVC_ENV_MAKED -ne $BUILD_INFO.arch -and $BUILD_INFO.is_msvc()){
+        if($BUILD_INFO.nmake_parallel){
+            #  将jom加入搜索路径
+            if( "$(where_first jom)" -ne (Get-Command $JOM_INFO.exe ).Definition){
+                $env:Path="$($JOM_INFO.root);$env:Path"
+            }
+        }
         $cmd="""$(Join-Path $($BUILD_INFO.msvc_root) -ChildPath vcvarsall.bat)"""
         if($BUILD_INFO.arch -eq 'x86'){
             $cmd+=' x86'
@@ -366,8 +385,8 @@ function build_boost(){
     Write-Host "runing bootstrap..." -ForegroundColor Yellow
     cmd /c "bootstrap"
     exit_on_error
-    Write-Host "b2 clean..." -ForegroundColor Yellow
-    cmd /c "b2 --clean 2>&1"
+    Write-Host "bjam clean..." -ForegroundColor Yellow
+    cmd /c "bjam --clean 2>&1"
     exit_on_error
     remove_if_exist "$install_path"    
     if($BUILD_INFO.arch -eq 'x86_64'){
@@ -384,8 +403,10 @@ function build_boost(){
     # link=static 只编译静态库
     # --with-<library> 编译安装指定的库<library>
     # -a 全部重新编译
+    # -jx 并发编译线程数
     Write-Host "boost compiling..." -ForegroundColor Yellow
-    $cmd=combine_multi_line "b2 --prefix=$install_path $address_model $toolset -a -q -d+3 --debug-configuration $toolset link=static runtime-link=static install 
+    args_not_null_empty_undefined MAKE_JOBS
+    $cmd=combine_multi_line "bjam --prefix=$install_path $address_model $toolset -a -q -d+3 -j$MAKE_JOBS --debug-configuration $toolset link=static runtime-link=static install 
         --with-date_time
         --with-system
         --with-thread
@@ -585,11 +606,11 @@ function build_openblas(){
         $mingw_version=$BUILD_INFO.gcc_version
     }elseif($BUILD_INFO.arch -eq 'x86'){
         $mingw_bin= Join-Path $MINGW32_INFO.root -ChildPath 'bin'
-        exit_if_not_exist $mingw_bin -type Container -msg "(没有安装 mingw32 编译器),mingw32 not installed,run ./fetch.ps1 mingw32 to install it "
+        exit_if_not_exist $mingw_bin -type Container -msg "(没有安装 mingw32 编译器),mingw32 not found,install it by running ./fetch.ps1 mingw32"
         $mingw_version=$MINGW32_INFO.version
     }else{
         $mingw_bin= Join-Path $MINGW64_INFO.root -ChildPath 'bin'
-        exit_if_not_exist $mingw_bin -type Container -msg "(没有安装 mingw64 编译器),mingw64 not installed,run ./fetch.ps1 mingw64 to install it "
+        exit_if_not_exist $mingw_bin -type Container -msg "(没有安装 mingw64 编译器),mingw64 not found,install it by running ./fetch.ps1 mingw64"
         $mingw_version=$MINGW64_INFO.version
     }    
     $src_root=Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder
@@ -644,7 +665,7 @@ function build_lmdb(){
 # 如果缺少，则将错误信息添加到 $error_msg 
 function check_component([string]$folder,[PSObject]$info,[ref][string[]]$error_msg){
     args_not_null_empty_undefined folder info error_msg
-    $null=(! (exist_file $folder)) -and ( $error_msg.Value+="(缺少 $($info.prefix) ),not found $folder,please run build.ps1 $($info.prefix)")
+    $null=(! (exist_file $folder)) -and ( $error_msg.Value+="(缺少 $($info.prefix) ),not found $folder,please build it by running ./build.ps1 $($info.prefix)")
 }
 # cmake静态编译 caffe 系列源码
 function build_caffe([PSObject]$project){

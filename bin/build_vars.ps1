@@ -273,8 +273,18 @@ $7Z_INFO_X86_64= create_project_info @{
 } -no_install_path
 $7Z_INFO=Get-Variable "7Z_INFO_$HOST_PROCESSOR" -ValueOnly 
 # 添加root属性
-Add-Member -InputObject $7Z_INFO_X86 -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $7Z_INFO_X86.folder -Path $TOOLS_ROOT )
-Add-Member -InputObject $7Z_INFO_X86_64 -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $7Z_INFO_X86_64.folder -Path $TOOLS_ROOT )
+Add-Member -InputObject $7Z_INFO_X86 -NotePropertyName root -NotePropertyValue (Join-Path -Path $TOOLS_ROOT -ChildPath $7Z_INFO_X86.folder  )
+Add-Member -InputObject $7Z_INFO_X86_64 -NotePropertyName root -NotePropertyValue (Join-Path -Path $TOOLS_ROOT -ChildPath $7Z_INFO_X86_64.folder )
+$JOM_INFO= create_project_info @{
+    prefix="jom"
+    version="1.1.2"
+    md5="7dfc3ba65f640a32a54e8e047f98209c"
+    package_suffix=".zip"
+} -no_install_path
+# 添加root属性
+Add-Member -InputObject $JOM_INFO -NotePropertyName root -NotePropertyValue (Join-Path  -Path $TOOLS_ROOT -ChildPath $JOM_INFO.folder )
+# 添加exe属性
+Add-Member -InputObject $JOM_INFO -NotePropertyName exe -NotePropertyValue (Join-Path $JOM_INFO.root -ChildPath "jom" )
 
 # 指定命令解压工具
 # 这里指定的exe，是支持命令行运行的版本,

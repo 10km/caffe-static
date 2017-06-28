@@ -101,7 +101,7 @@ function clean_folder([string]$folder){
 function mkdir_if_not_exist([string]$folder){
     args_not_null_empty_undefined folder
 	if (!(exist_file -file $folder -type Container)){	
-		mkdir $folder
+		$null=mkdir $folder
 		exit_on_error
 	}
 }
@@ -223,7 +223,7 @@ function unpack([string]$package,[string]$targetFolder){
         exit -1
     }
     if(!( Test-Path -Path $targetFolder -PathType Container)){
-        mkdir $targetFolder
+        $null=mkdir $targetFolder 
         exit_on_error
     }
     $suffix=$package.Substring($index) 
