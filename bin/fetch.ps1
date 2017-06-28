@@ -7,7 +7,7 @@
 author: guyadong@gdface.net
 #>
 param(
-[string[]]$names=($all_names -split ' ') ,
+[string[]]$names ,
 [switch]$force,
 [switch]$verbose,
 [switch]$help
@@ -184,6 +184,7 @@ function fetch_msys2(){
         $MSYS2_INSTALL_LOCATION=$MSYS2_INFO.root
     }
     # 如果没有安装 perl,在 MSYS2 中安装 perl
+    Write-Host "(检查是否安装perl) check perl installed"
     $bash=[io.path]::Combine($($MSYS2_INSTALL_LOCATION),'usr','bin','bash')
     cmd /c "$bash -l -c `"if [ ! `$(which perl) ] ;then pacman -S --noconfirm perl ;fi; perl --version`" 2>&1"
     exit_on_error "(perl安装失败，请重试)fail to install perl,please try again"
@@ -347,7 +348,7 @@ author: guyadong@gdface.net
     }
 }
 # 所有项目列表
-$all_names="7z msys2 mingw32 mingw64 cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd caffe_windows"
+$all_names="7z msys2 mingw32 mingw64 cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 ssd caffe_windows".Trim() -split '\s+'
 # 当前脚本名称
 $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载
@@ -358,6 +359,9 @@ $VERBOSE_EXTRACT=$verbose
 if($help){
     print_help  
     exit 0
+}
+if(! $names){
+    $names= $all_names
 }
 echo $names| foreach {    
     if( $_ -and ! (Test-Path function:"fetch_$($_.ToLower())") ){

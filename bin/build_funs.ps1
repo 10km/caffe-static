@@ -57,6 +57,7 @@ function remove_if_exist([string]$file){
         Write-Host "(É¾³ý)deleting $file" -ForegroundColor Yellow
 		del -Force -Recurse  $file
 		if( ! $? ){
+            Write-Host "(É¾³ýÊ§°Ü,Çë³¢ÊÔÊÖ¹¤É¾³ý)failt to delete $file,try delete it manually" -ForegroundColor Red
             call_stack 
 			exit -1
 		}

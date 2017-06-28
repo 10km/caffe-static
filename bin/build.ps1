@@ -4,7 +4,7 @@
 author: guyadong@gdface.net
 #>
 param(
-[string[]]$names=$all_names ,
+[string[]]$names,
 [ValidateSet('auto','vs2015','vs2013','gcc')]
 [string]$compiler='auto',
 [ValidateSet('auto','x86','x86_64')]
