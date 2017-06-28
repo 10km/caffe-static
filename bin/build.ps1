@@ -13,10 +13,7 @@ param(
 [switch]$revert,
 [switch]$help
 )
-# 所有项目列表字符串数组
-$all_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf caffe_windows".Trim() -split '\s+'
-# 当前脚本名称
-$my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
+
 # 用命令行输入的参数初始化 $BUILD_INFO 变量 [PSObject]
 $BUILD_INFO=New-Object PSObject -Property @{
     # 编译器类型 vs2013|vs2015|gcc
@@ -51,7 +48,10 @@ $BUILD_INFO=New-Object PSObject -Property @{
     make_exe=""
     # make 工具编译时的默认选项
     make_exe_option=""
+    # 项目编译成功后是否清除 build文件夹
+    remove_build=$true
 }
+# $BUILD_INFO 成员方法 
 # 生成调用 cmake 时的默认命令行参数
 Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name make_cmake_vars_define -Value {
         param([string]$c_flags,[string]$cxx_flags,[string]$exe_linker_flags)
@@ -67,22 +67,55 @@ Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name make_cmake_va
         }
         $vars
     }
+# $BUILD_INFO 成员方法 
 # 判断编译器是不是 msvc
 Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name is_msvc -Value {
     $this.compiler -match 'vs\d+'
 }
+# $BUILD_INFO 成员方法 
 # 判断编译器是不是 msvc
 Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name is_gcc -Value {
     $this.compiler -eq 'gcc'
 }
-    
+# $BUILD_INFO 成员方法 
+# 进入项目文件夹，如果没有指定 $no_build 清空 build 文件夹,并进入 build文件夹
+# 调用者必须将 项目配置对象(如 BOOST_INFO)保存在 $project 变量中
+# $no_build 不创建 build 文件夹
+Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name begin_build -Value {
+    param([string[]]$sub_folders,[switch]$no_build)
+    args_not_null_empty_undefined project
+    Write-Host "(开始编译)building $($project.prefix) $($project.version)" -ForegroundColor Yellow
+    [string[]]$paths=$SOURCE_ROOT,$project.folder
+    $paths+=$sub_folders
+    pushd ([io.path]::Combine($paths))
+    if(! $no_build){
+        $build="build.$($this.compiler)"
+        clean_folder $build
+        pushd "$build"
+    }
+}
+# $BUILD_INFO 成员方法 
+# 退出项目文件夹，清空 build 文件夹,必须与 prepare_build 配对使用
+Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name end_build -Value {
+    $build="build.$($this.compiler)"
+    if( (pwd).path.endsWith($build)){
+        popd
+        if($this.remove_build){
+            remove_if_exist $build
+        }        
+    }
+    popd
+}
+
+# include 公共全局变量    
 . "$PSScriptRoot/build_vars.ps1"
+
 # 调用 where 在搜索路径中查找 $who 指定的可执行文件,
 # 如果找到则返回第一个结果
 # 如果没找到返回空 
 function where_first($who){
     args_not_null_empty_undefined who    
-    (get-command gcc  -ErrorAction SilentlyContinue| Select-Object Definition -First 1).Definition
+    (get-command $who  -ErrorAction SilentlyContinue| Select-Object Definition -First 1).Definition
 }
 
 # 测试 gcc 编译器($gcc_compiler)是否能生成$arch指定的代码(32/64位)
@@ -236,10 +269,8 @@ function combine_multi_line([string]$cmd){
 # 静态编译 gflags 源码
 function build_gflags(){
     $project=$GFLAGS_INFO
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    remove_if_exist CMakeCache.txt
-    remove_if_exist CMakeFiles
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$($project.install_path())"" 
+    $BUILD_INFO.begin_build()
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$($project.install_path())"" 
         -DBUILD_SHARED_LIBS=off         
 	    -DBUILD_STATIC_LIBS=on 
 	    -DBUILD_gflags_LIB=on 
@@ -251,64 +282,68 @@ function build_gflags(){
     exit_on_error
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
+    $BUILD_INFO.end_build()
 }
 # 静态编译 glog 源码
 function build_glog(){
     $project=$GLOG_INFO
     $gflags_DIR=[io.path]::combine($($GFLAGS_INFO.install_path()),'cmake')
     exit_if_not_exist "$gflags_DIR"  -type Container -msg "not found $gflags_DIR,please build $($GFLAGS_INFO.prefix)"
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    remove_if_exist CMakeCache.txt
-    remove_if_exist CMakeFiles
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) . $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=$($project.install_path()) 
+    $BUILD_INFO.begin_build()
+    if($BUILD_INFO.is_msvc()){
+        # MSVC 关闭编译警告
+        $env:CXXFLAGS='/wd4290 /wd4267 /wd4722'
+        $env:CFLAGS  ='/wd4290 /wd4267 /wd4722'
+    }
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=$($project.install_path()) 
         -Dgflags_DIR=$gflags_DIR 
 	    -DBUILD_SHARED_LIBS=off 2>&1"
     cmd /c $cmd
     exit_on_error
+    $env:CXXFLAGS=''
+    $env:CFLAGS  =''
     remove_if_exist "$project.install_path()"
     cmd /c "$($BUILD_INFO.make_exe) clean 2>&1"
     exit_on_error
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
+    $BUILD_INFO.end_build()
 }
 # cmake静态编译 bzip2 1.0.5源码
 function build_bzip2(){
     $project=$BZIP2_INFO
     $install_path=$project.install_path()
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    clean_folder build.gcc
-    pushd build.gcc
+    $BUILD_INFO.begin_build()
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
-        $c_flags='/wd4996 /wd4267'
+        $env:CXXFLAGS='/wd4996 /wd4267 /wd4244'
+        $env:CFLAGS  ='/wd4996 /wd4267 /wd4244'
     }
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define($c_flags)) -DCMAKE_INSTALL_PREFIX=""$install_path""
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DCMAKE_POLICY_DEFAULT_CMP0026=OLD
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
+    $env:CXXFLAGS=''
+    $env:CFLAGS  =''
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
-    rm  build.gcc -Force -Recurse
-    popd
+    $BUILD_INFO.end_build()
 }
 # 静态编译 boost 源码
 function build_boost(){
     $project=$BOOST_INFO
     $install_path=$project.install_path()
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
+    $BUILD_INFO.begin_build($null,$true)
+
     #exit_if_not_exist $BZIP2_INSTALL_PATH "not found $BZIP2_INSTALL_PATH,please build $BZIP2_PREFIX"
     # 指定依赖库bzip2的位置,编译iostreams库时需要
     #export LIBRARY_PATH=$BZIP2_INSTALL_PATH/lib:$LIBRARY_PATH
     #export CPLUS_INCLUDE_PATH=$BZIP2_INSTALL_PATH/include:$CPLUS_INCLUDE_PATH
 
     # user-config.jam 位于boost 根目录下
-    $pwd=$(cmd /c cd)
-    $jam=Join-Path $pwd -ChildPath user-config.jam
+    $jam=Join-Path $(pwd) -ChildPath user-config.jam
     if($BUILD_INFO.is_gcc()){
         # 使用 gcc 编译器时用 user-config.jam 指定编译器路径
         # Out-File 默认生成的文件有bom头，所以生成 user-config.jam 时要指定 ASCII 编码(无bom)，否则会编译时读取文件报错：syntax error at EOF
@@ -358,15 +393,13 @@ function build_boost(){
         --with-regex 2>&1"
     cmd /c $cmd 
     exit_on_error
-    popd
+    $BUILD_INFO.end_build()
 }
 # 静态编译 protobuf 源码
 function build_protobuf(){
     $project=$PROTOBUF_INFO
     $install_path=$project.install_path()
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    clean_folder build.gcc
-    pushd build.gcc
+    $BUILD_INFO.begin_build()
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) ../cmake $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
     	    -Dprotobuf_BUILD_TESTS=off 
 			-Dprotobuf_BUILD_SHARED_LIBS=off 2>&1" 
@@ -375,17 +408,13 @@ function build_protobuf(){
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
-    rm  build.gcc -Force -Recurse
-    popd
+    $BUILD_INFO.end_build()
 }
 # 静态编译 hdf5 源码
 function build_hdf5(){
     $project=$HDF5_INFO
     $install_path=$project.install_path()
-    pushd $([io.path]::Combine($SOURCE_ROOT,$project.folder,$project.folder))
-    clean_folder build.gcc
-    pushd build.gcc
+    $BUILD_INFO.begin_build($project.folder)
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DBUILD_SHARED_LIBS=off 
 		-DBUILD_TESTING=off 
@@ -399,9 +428,7 @@ function build_hdf5(){
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
-    #rm  build.gcc -Force -Recurse
-    popd
+    $BUILD_INFO.end_build()
 }
 # 静态编译 snappy 源码
 function build_snappy(){
@@ -409,20 +436,23 @@ function build_snappy(){
     $install_path=$project.install_path()
     $gflags_DIR=[io.path]::combine($($GFLAGS_INFO.install_path()),'cmake')
     exit_if_not_exist "$gflags_DIR"  -type Container -msg "not found $gflags_DIR,please build $($GFLAGS_INFO.prefix)"
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    clean_folder build.gcc
-    pushd build.gcc
+    $BUILD_INFO.begin_build()
+    if($BUILD_INFO.is_msvc()){
+        # MSVC 关闭编译警告
+        $env:CXXFLAGS='/wd4819 /wd4267 /wd4244 /wd4018 /wd4005'
+        $env:CFLAGS  ='/wd4819 /wd4267 /wd4244 /wd4018 /wd4005'
+    }
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DGflags_DIR=$gflags_DIR 
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
+    $env:CXXFLAGS=''
+    $env:CFLAGS  =''
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
-    rm  build.gcc -Force -Recurse
-    popd
+    $BUILD_INFO.end_build()
 }
 # 静态编译 opencv 源码
 function build_opencv(){
@@ -432,13 +462,16 @@ function build_opencv(){
     #bzip2_libraries=$BZIP2_INSTALL_PATH/lib/libbz2.a
     #exit_if_not_exist $bzip2_libraries "not found $bzip2_libraries,please build $BZIP2_PREFIX"
 
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    clean_folder build.gcc
-    pushd build.gcc
+    $BUILD_INFO.begin_build()
     if($BUILD_INFO.is_msvc()){
         $build_with_static_crt='-DBUILD_WITH_STATIC_CRT=on'
     }elseif($BUILD_INFO.is_gcc()){
         $build_fat_java_lib='-DBUILD_FAT_JAVA_LIB=off'
+    }
+    if($BUILD_INFO.is_msvc()){
+        # MSVC 关闭编译警告
+        $env:CXXFLAGS='/wd4819'
+        $env:CFLAGS  ='/wd4819'
     }
     # 如果不编译 FFMPEG , cmake时不需要指定 BZIP2_LIBRARIES
 	#	-DBZIP2_LIBRARIES=$BZIP2_INSTALL_PATH/lib/libbz2.a 
@@ -504,12 +537,12 @@ function build_opencv(){
             2>&1" 
     cmd /c $cmd
     exit_on_error
+    $env:CXXFLAGS=''
+    $env:CFLAGS  =''
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
-    rm  build.gcc -Force -Recurse
-    popd
+    $BUILD_INFO.end_build()
 }
 # cmake静态编译 leveldb(bureau14)源码
 function build_leveldb(){
@@ -517,13 +550,11 @@ function build_leveldb(){
     $install_path=$project.install_path()
     $boost_root=$BOOST_INFO.install_path()
     exit_if_not_exist "$boost_root"  -type Container -msg "not found $boost_root,please build $($BOOST_INFO.prefix)"
-
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    clean_folder build.gcc
-    pushd build.gcc
+    $BUILD_INFO.begin_build()
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
-        $c_flags='/wd4312 /EHsc'
+        $env:CXXFLAGS='/wd4312'
+        $env:CFLAGS  ='/wd4312'
     }
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DBOOST_ROOT=`"$boost_root`"
@@ -532,12 +563,12 @@ function build_leveldb(){
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
+    $env:CXXFLAGS=''
+    $env:CFLAGS  =''
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
-    rm  build.gcc -Force -Recurse
-    popd
+    $BUILD_INFO.end_build()
 }
 # 静态编译 OpenBLAS 源码,在 MSYS2 中编译，需要 msys2 支持
 function build_openblas(){
@@ -597,9 +628,7 @@ function build_openblas(){
 function build_lmdb(){
     $project=$LMDB_INFO
     $install_path=$project.install_path()
-    pushd ([io.path]::Combine($SOURCE_ROOT,$project.folder,'libraries','liblmdb'))
-    clean_folder build.gcc
-    pushd build.gcc
+    $BUILD_INFO.begin_build(@('libraries','liblmdb'))
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""  
         -DCLOSE_WARNING=on
         -DBUILD_TEST=off
@@ -609,9 +638,7 @@ function build_lmdb(){
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
-    rm  build.gcc -Force -Recurse
-    popd
+    $BUILD_INFO.end_build()
 }
 # 检查指定的组件是否已经编译安装
 # 如果缺少，则将错误信息添加到 $error_msg 
@@ -619,96 +646,13 @@ function check_component([string]$folder,[PSObject]$info,[ref][string[]]$error_m
     args_not_null_empty_undefined folder info error_msg
     $null=(! (exist_file $folder)) -and ( $error_msg.Value+="(缺少 $($info.prefix) ),not found $folder,please run build.ps1 $($info.prefix)")
 }
-# cmake静态编译 caffe-ssd 源码
-function build_ssd(){
-    $project=$SSD_INFO
-    $install_path=$project.install_path()
-    [string[]]$error_message=@()
-    check_component $GFLAGS_INFO.install_path() $GFLAGS_INFO ([ref]$error_message)
-    check_component $GLOG_INFO.install_path() $GLOG_INFO ([ref]$error_message)
-    # hdf5 cmake 位置  
-    $hdf5_cmake_dir="$($HDF5_INFO.install_path())/cmake"
-    check_component $hdf5_cmake_dir $HDF5_INFO ([ref]$error_message)
-    check_component $BOOST_INFO.install_path() $BOOST_INFO ([ref]$error_message)
-    check_component $OPENBLAS_INFO.install_path() $OPENBLAS_INFO ([ref]$error_message)
-    check_component $PROTOBUF_INFO.install_path() $PROTOBUF_INFO ([ref]$error_message)
-    # protobuf lib 路径
-    $protobuf_lib="$($PROTOBUF_INFO.install_path())/lib"
-    check_component $SNAPPY_INFO.install_path() $SNAPPY_INFO ([ref]$error_message)
-    check_component $LMDB_INFO.install_path() $LMDB_INFO ([ref]$error_message)
-    check_component $LEVELDB_INFO.install_path() $LEVELDB_INFO ([ref]$error_message)
-    # opencv 配置文件(OpenCVConfig.cmake)所在路径
-    $opencv_cmake_dir="$($OPENCV_INFO.install_path())/x64/vc14/staticlib"
-    check_component $opencv_cmake_dir $OPENCV_INFO ([ref]$error_message)
-    if($error_message.count){
-        Write-Host ($error_message -join '`n') -ForegroundColor Yellow
-        exit -1
-    }
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder)
-    clean_folder build.gcc
-    pushd build.gcc
-    # 指定 OpenBLAS 安装路径 参见 $caffe_source/cmake/Modules/FindOpenBLAS.cmake
-    $env:OpenBLAS_HOME=$OPENBLAS_INFO.install_path()
-    # 指定 lmdb 安装路径 参见 $caffe_source/cmake/Modules/FindLMDB.cmake.cmake
-    $env:LMDB_DIR=$LMDB_INFO.install_path()
-    # 指定 leveldb 安装路径 参见 $caffe_source/cmake/Modules/FindLevelDB.cmake.cmake
-    $env:LEVELDB_ROOT=$LEVELDB_INFO.install_path()
-    # GLOG_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGlog.cmake
-    # GFLAGS_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGFlags.cmake
-    # HDF5_ROOT 参见 https://cmake.org/cmake/help/v3.8/module/FindHDF5.html
-    # BOOST_ROOT,Boost_NO_SYSTEM_PATHS 参见 https://cmake.org/cmake/help/v3.8/module/FindBoost.html
-    # SNAPPY_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindSnappy.cmake
-    # PROTOBUF_LIBRARY,PROTOBUF_PROTOC_LIBRARY... 参见 https://cmake.org/cmake/help/v3.8/module/FindProtobuf.html
-    # OpenCV_DIR 参见https://cmake.org/cmake/help/v3.8/command/find_package.html
-    $lib_suffix=$(if($BUILD_INFO.is_msvc()){'.lib'}else{'.a'})
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""  
-	    -DGLOG_ROOT_DIR=`"$($GLOG_INFO.install_path())`"
-	    -DGFLAGS_ROOT_DIR=`"$($GFLAGS_INFO.install_path())`" 
-	    -DHDF5_ROOT=`"$($HDF5_INFO.install_path())`"
-        -DHDF5_USE_STATIC_LIBRARIES=on
-	    -DBOOST_ROOT=`"$($BOOST_INFO.install_path())`" 
-	    -DBoost_NO_SYSTEM_PATHS=on 
-        -DBoost_USE_STATIC_LIBS=on
-	    -DSNAPPY_ROOT_DIR=`"$($SNAPPY_INFO.install_path())`"
-	    -DOpenCV_DIR=$opencv_cmake_dir 
-	    -DPROTOBUF_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf$lib_suffix" )`"
-	    -DPROTOBUF_PROTOC_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotoc$lib_suffix")`"
-	    -DPROTOBUF_LITE_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf-lite$lib_suffix")`"
-	    -DPROTOBUF_PROTOC_EXECUTABLE=`"$([io.path]::Combine($($PROTOBUF_INFO.install_path()),'bin','protoc.exe'))`"
-	    -DPROTOBUF_INCLUDE_DIR=`"$($PROTOBUF_INFO.install_path().replace('\','/'))/include`"
-	    -DCPU_ONLY=ON 
-	    -DBLAS=Open 
-	    -DBUILD_SHARED_LIBS=off 
-	    -DBUILD_docs=off 
-	    -DBUILD_python=off 
-	    -DBUILD_python_layer=off 
-	    -DUSE_LEVELDB=on 
-	    -DUSE_LMDB=on 
-	    -DUSE_OPENCV=on  2>&1" 
-    cmd /c $cmd
-    exit_on_error
-    # 修改所有 link.txt 删除-lstdc++ 选项，保证静态连接libstdc++库,否则在USE_OPENCV=on的情况下，libstdc++不会静态链接
-    if($BUILD_INFO.is_gcc()){
-        ls . -Filter link.txt -Recurse|foreach {    
-	        echo "modifing file: $_"
-	        sed -i -r "s/-lstdc\+\+/ /g" $_
-            (Get-Content $_) -replace '(^-lstdc\+\+','' | Out-File $_ -Encoding ascii -Force
-        }
-    }
-    remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
-    exit_on_error
-    popd
-    rm  build.gcc -Force -Recurse
-    popd
-}
 # cmake静态编译 caffe 系列源码
-function build_caffe([PSObject]$caffe){
-    args_not_null_empty_undefined caffe
-    if($caffe.prefix -ne 'caffe'){
-        throw "not project caffe based $caffe"
+function build_caffe([PSObject]$project){
+    args_not_null_empty_undefined project
+    if($project.prefix -ne 'caffe'){
+        throw "not project caffe based $project"
     }
-    $install_path=$caffe.install_path()
+    $install_path=$project.install_path()
     # 调用 check_component 函数依次检查编译 caffe 所需的依赖库是否齐全
     # 保存错误信息的数组,调用check_component时如果有错，错误保存到数组
     [string[]]$error_message=@()
@@ -733,9 +677,7 @@ function build_caffe([PSObject]$caffe){
         Write-Host ($error_message -join '`n') -ForegroundColor Yellow
         exit -1
     }
-    pushd (Join-Path -Path $SOURCE_ROOT -ChildPath $caffe.folder)
-    clean_folder build.gcc
-    pushd build.gcc
+    $BUILD_INFO.begin_build()
     # 指定 OpenBLAS 安装路径 参见 $caffe_source/cmake/Modules/FindOpenBLAS.cmake
     $env:OpenBLAS_HOME=$OPENBLAS_INFO.install_path()
     # 指定 lmdb 安装路径 参见 $caffe_source/cmake/Modules/FindLMDB.cmake.cmake
@@ -788,9 +730,9 @@ function build_caffe([PSObject]$caffe){
 	    -DUSE_LMDB=on 
 	    -DUSE_OPENCV=on  2>&1" 
     cmd /c $cmd
+    exit_on_error
     $env:CXXFLAGS=''
     $env:CFLAGS=''
-    exit_on_error
     # 修改所有 link.txt 删除-lstdc++ 选项，保证静态连接libstdc++库,否则在USE_OPENCV=on的情况下，libstdc++不会静态链接
     if($BUILD_INFO.is_gcc()){
         ls . -Filter link.txt -Recurse|foreach {    
@@ -802,17 +744,15 @@ function build_caffe([PSObject]$caffe){
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
     exit_on_error
-    popd
-    #rm  build.gcc -Force -Recurse
-    popd
+    $BUILD_INFO.end_build()
 }
 # 输出帮助信息
 function print_help(){
     if($(chcp ) -match '\.*936$'){
-	    echo "用法: $my_name [-names] [项目名称列表,...] [可选项...] 
+	    echo "用法: $current_script_name [-names] [项目名称列表,...] [可选项...] 
 编译安装指定的项目,如果没有指定项目名称，则编译所有项目
     -n,-names       项目名称列表(逗号分隔,忽略大小写)
-                    可选的项目名称: $all_names 
+                    可选的项目名称: $all_project_names 
 选项:
 	-c,-compiler    指定编译器类型,可选值: vs2013,vs2015,gcc,默认 auto(自动侦测)
                     指定为gcc时,如果没有检测到MinGW编译器,则使用本系统自带的MinGW编译器
@@ -823,11 +763,11 @@ function print_help(){
 作者: guyadong@gdface.net
 "
     }else{
-        echo "usage: $my_name [-names] [PROJECT_NAME,...] [options...] 
+        echo "usage: $current_script_name [-names] [PROJECT_NAME,...] [options...] 
 build & install projects specified by project name,
 all projects builded if no name argument
     -n,-names       prject names(split by comma,ignore case)
-                    optional project names: $all_names 
+                    optional project names: $all_project_names 
 
 options:
 	-c,-compiler    compiler type,valid value:'vs2013','vs2015','gcc',default 'auto' 
@@ -840,7 +780,10 @@ author: guyadong@gdface.net
 "
     }
 }
-
+# 所有项目列表字符串数组
+$all_project_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf caffe_windows".Trim() -split '\s+'
+# 当前脚本名称
+$current_script_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 if($help){
     print_help  
     exit 0
@@ -862,8 +805,9 @@ $BUILD_INFO
 #build_leveldb_bureau14
 #build_openblas
 #build_lmdb
+# 没有指定 names 参数时编译所有项目
 if(! $names){
-    $names= $all_names
+    $names= $all_project_names
 }
 echo $names| foreach {    
     if( ! (Test-Path function:"build_$($_.ToLower())") -and !($_.StartsWith('caffe'))   ){
