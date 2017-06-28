@@ -432,8 +432,12 @@ function build_protobuf(){
     $project=$PROTOBUF_INFO
     $install_path=$project.install_path()
     $BUILD_INFO.begin_build()
+    if($BUILD_INFO.is_msvc()){
+        $protobuf_msvc_static_runtime="-Dprotobuf_MSVC_STATIC_RUNTIME=$(if($BUILD_INFO.msvcrt){'off'}else{'on'})"
+    }
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) ../cmake $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
     	    -Dprotobuf_BUILD_TESTS=off 
+            $protobuf_msvc_static_runtime
 			-Dprotobuf_BUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
@@ -493,10 +497,10 @@ function build_opencv(){
     # 如果不编译 FFMPEG 不需要 bzip2
     #bzip2_libraries=$BZIP2_INSTALL_PATH/lib/libbz2.a
     #exit_if_not_exist $bzip2_libraries "not found $bzip2_libraries,please build $BZIP2_PREFIX"
-
+ 
     $BUILD_INFO.begin_build()
     if($BUILD_INFO.is_msvc()){
-        $build_with_static_crt='-DBUILD_WITH_STATIC_CRT=on'
+        $build_with_static_crt="-DBUILD_WITH_STATIC_CRT=$(if($BUILD_INFO.msvcrt){'off'}else{'on'})"
     }elseif($BUILD_INFO.is_gcc()){
         $build_fat_java_lib='-DBUILD_FAT_JAVA_LIB=off'
     }
@@ -588,10 +592,14 @@ function build_leveldb(){
         $env:CXXFLAGS='/wd4312'
         $env:CFLAGS  ='/wd4312'
     }
+    $boost_use_static_runtime='on'
+    if($BUILD_INFO.is_msvc() -and $BUILD_INFO.msvcrt){
+        $boost_use_static_runtime='off'
+    }
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DBOOST_ROOT=`"$boost_root`"
 	    -DBoost_NO_SYSTEM_PATHS=on 
-        -DBoost_USE_STATIC_RUNTIME=on
+        -DBoost_USE_STATIC_RUNTIME=$boost_use_static_runtime
         -DBUILD_SHARED_LIBS=off 2>&1" 
     cmd /c $cmd
     exit_on_error
@@ -729,6 +737,10 @@ function build_caffe([PSObject]$project){
         # MSVC 关闭编译警告
         $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
     }
+    $boost_use_static_runtime='on'
+    if($BUILD_INFO.is_msvc() -and $BUILD_INFO.msvcrt){
+        $boost_use_static_runtime='off'
+    }
     # 宏定义 /DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES 用于解决 glog 连接报错
     $env:CXXFLAGS="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
     $env:CFLAGS  ="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
@@ -742,7 +754,7 @@ function build_caffe([PSObject]$project){
 	    -DBOOST_ROOT=`"$($BOOST_INFO.install_path())`" 
 	    -DBoost_NO_SYSTEM_PATHS=on 
         -DBoost_USE_STATIC_LIBS=on
-        -DBoost_USE_STATIC_RUNTIME=on
+        -DBoost_USE_STATIC_RUNTIME=$boost_use_static_runtime
 	    -DSNAPPY_ROOT_DIR=`"$($SNAPPY_INFO.install_path())`"
 	    -DOpenCV_DIR=`"$opencv_cmake_dir`" 
         -DProtobuf_DIR=`"$(Join-Path $PROTOBUF_INFO.install_path() -ChildPath cmake)`"
