@@ -162,11 +162,10 @@ function detect_compiler(){
                     args_not_null_empty_undefined MAKE_JOBS
                     $BUILD_INFO.make_exe_option="-j $MAKE_JOBS"
                 }else{
-                    $makeType='NMake Makefiles'
+                    $generator='NMake Makefiles'
                     $BUILD_INFO.make_exe='nmake'
                 }
-                #$BUILD_INFO.cmake_vars_define="-G ""NMake Makefiles"" -DCMAKE_BUILD_TYPE:STRING=RELEASE -DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
-                $BUILD_INFO.cmake_vars_define="-G `"$makeType`" -DCMAKE_BUILD_TYPE:STRING=RELEASE -DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
+                $BUILD_INFO.cmake_vars_define="-G `"$generator`" -DCMAKE_BUILD_TYPE:STRING=RELEASE -DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
                 #$BUILD_INFO.cmake_vars_define="-G ""Visual Studio 14 2015 Win64"" "   
                 $null = $arg -match 'vs(\d+)'
                 $BUILD_INFO.vs_version=$Matches[1] 
@@ -780,6 +779,7 @@ function print_help(){
     -a,-arch        指定目标代码类型(x86,x86_64),默认auto(自动侦测)
     -g,-gcc         指定MingGW编译器的安装路径(bin文件夹),指定此值后，编译器类型(-compiler)自动设置为gcc
     -r,-revert      对项目强制执行fetch,将项目代码恢复到初始状态 
+    -j,-jom         使用jom并行编译,CPU满功率运行,比nmake提高数倍的速度,仅在使用MSVC编译时有效
 	-h,-help        显示帮助信息
 作者: guyadong@gdface.net
 "
@@ -796,6 +796,7 @@ options:
     -g,-gcc         MinGW compiler location('bin' folder,such as 'P:\MinGW\mingw64\bin'),
                     the '-compiler' option will be overwrited  to 'gcc' if this option defined 
     -r,-revert      force fetch the project,revert source code
+    -j,-jom         jom parallel build with multiple CPU,effective only when MSVC
 	-h,-help        print the message
 author: guyadong@gdface.net
 "
