@@ -15,7 +15,8 @@ param(
 [switch]$revert,
 [alias('md')]
 [switch]$msvc_shared_runtime,
-[switch]$buildReserved,
+[switch]$debug,
+[switch]$build_reserved,
 [switch]$help
 )
 
@@ -62,8 +63,8 @@ $BUILD_INFO=New-Object PSObject -Property @{
     # install 任务名称,使用msbuild编译msvc工程时名称为'install.vcxproj'
     make_install_target='install'
     # 项目编译成功后是否清除 build文件夹
-    build_type='Release'
-    remove_build=!$buildReserved
+    build_type=$(if($debug){'debug'}else{'Release'})
+    remove_build= ! $build_reserved
 }
 # $BUILD_INFO 成员方法 
 # 生成调用 cmake 时的默认命令行参数
@@ -861,7 +862,8 @@ function print_help(){
                     sln  : Visual Studio工程(.sln),msbuild并行编译
     -md,-msvc_shared_runtime  
                     MSVC编译时使用 /MD 连接选项,默认 /MT
-    -buildReserved  保存编译生成工程文件及中间文件
+    -debug          编译Debug版本,默认Release
+    -build_reserved 保存编译生成工程文件及中间文件
 	-h,-help        显示帮助信息
 作者: guyadong@gdface.net
 "
@@ -885,7 +887,8 @@ options:
                     sln  : Visual Studio工程(.sln),parallel build by MSBuild
     -md,-msvc_shared_runtime  
                     use /MD link option,default /MT ,effective only when MSVC
-    -buildReserved  reserve thd build folder while project building finished
+    -debug          Debug building, default is Release
+    -build_reserved reserve thd build folder while project building finished
 	-h,-help        print the message
 author: guyadong@gdface.net
 "
