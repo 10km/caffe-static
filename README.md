@@ -76,6 +76,6 @@ pactch 存放对应项目的补丁文件
 关于编译器版本要求参见 build_vars 中的变量 compiler_version_limit 定义，
 可以通过 BUILD_COMPILER_PATH 指定编译器位置(参见bin/build_vars中 BUILD_COMPILER_PATH 的定义 )
 
-
-
+powershell 4.0 下载安装
+https://social.technet.microsoft.com/wiki/contents/articles/21016.how-to-install-windows-powershell-4-0.aspx
 
