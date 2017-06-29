@@ -21,7 +21,7 @@ function get_os_processor(){
 function install_suffix([string]$prefix){
     args_not_null_empty_undefined prefix HOST_OS BUILD_INFO
     if($BUILD_INFO.is_msvc()){
-        $link=$(if($BUILD_INFO.msvcrt){'_md'}else{'_mt'})
+        $link=$(if($BUILD_INFO.msvc_shared_runtime){'_md'}else{'_mt'})
     }else{
         $link=''
     }    

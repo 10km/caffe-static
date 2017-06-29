@@ -9,10 +9,12 @@ param(
 [string]$compiler='auto',
 [ValidateSet('auto','x86','x86_64')]
 [string]$arch='auto',
+[ValidateSet('nmake','jom','sln')]
+[string]$msvc_project='jom',
 [string]$gcc=$DEFAULT_GCC,
 [switch]$revert,
-[switch]$msvcrt,
-[switch]$jom,
+[alias('md')]
+[switch]$msvc_shared_runtime,
 [switch]$buildReserved,
 [switch]$help
 )
@@ -33,8 +35,9 @@ $BUILD_INFO=New-Object PSObject -Property @{
     vs_version=""
     vc_version=@{ 'vs2013'='vc120' 
                   'vs2015'='vc140'}
+    msvc_project=$msvc_project
     # MSVC 连接选项使用 /MD
-    msvcrt=$msvcrt
+    msvc_shared_runtime=$msvc_shared_runtime
     # gcc安装路径 如:P:\MinGW\mingw64\bin
     gcc_location=$gcc
     # gcc版本号
@@ -56,7 +59,10 @@ $BUILD_INFO=New-Object PSObject -Property @{
     nmake_parallel=$jom
     # make 工具编译时的默认选项
     make_exe_option=""
+    # install 任务名称,使用msbuild编译msvc工程时名称为'install.vcxproj'
+    make_install_target='install'
     # 项目编译成功后是否清除 build文件夹
+    build_type='Release'
     remove_build=!$buildReserved
 }
 # $BUILD_INFO 成员方法 
@@ -150,7 +156,7 @@ function test_gcc_compiler_capacity([string]$gcc_compiler,[ValidateSet('x86','x8
 # 根据提供的编译器类型列表，按顺序在系统中侦测安装的编译器，
 # 如果找到就返回找到的编译类型名,
 # 如果没有找到任何一种编译器则报错退出
-function detect_compiler(){    
+function detect_compiler(){  
     foreach ( $arg in $args){
         switch -Regex ($arg){
         '^(vs2015|vs2013)$'{ 
@@ -161,21 +167,41 @@ function detect_compiler(){
             $cl_exe="$([io.path]::Combine($vc_root,'bin','cl.exe'))"            
             if($vscomntools_value -and (Test-Path "$([io.path]::Combine($vc_root,'bin','cl.exe'))" -PathType Leaf)){
                 $BUILD_INFO.msvc_root=$vc_root
-                if($BUILD_INFO.nmake_parallel){
+                switch($BUILD_INFO.msvc_project){
+                'nmake'{
+                    $generator='NMake Makefiles'
+                    $BUILD_INFO.make_exe='nmake'
+                }
+                'jom'{
                     exit_if_not_exist $JOM_INFO.root -type Container -msg '(没有安装 jom),not found jom,please install it by running ./fetch.ps1 jom'
                     $generator='NMake Makefiles JOM'
                     $BUILD_INFO.make_exe='jom'
                     args_not_null_empty_undefined MAKE_JOBS
                     $BUILD_INFO.make_exe_option="-j $MAKE_JOBS"
-                }else{
-                    $generator='NMake Makefiles'
-                    $BUILD_INFO.make_exe='nmake'
                 }
-                if(! $BUILD_INFO.msvcrt){
+                'sln'{
+                    $gp_map=@{
+                        vs2013='Visual Studio 12 2013'
+                        vs2015='Visual Studio 14 2015'
+                        vs2017='Visual Studio 15 2017'
+                    }
+                    $gs_map=@{
+                        x86=''
+                        x86_64=' Win64'
+                        arm=' ARM'
+                    }
+                    $generator='{0}{1}' -f $gp_map.$arg,$gs_map.$($BUILD_INFO.arch)
+                    $BUILD_INFO.make_exe='msbuild'
+                    $BUILD_INFO.make_exe_option="/maxcpucount /t:build /p:Configuration=$($BUILD_INFO.build_type)"
+                    $BUILD_INFO.make_install_target='INSTALL.vcxproj'
+                }
+                default{ call_stack; throw "(无效工程类型)invalid project type:$($BUILD_INFO.msvc_project)"}
+                }
+                if(! $BUILD_INFO.msvc_shared_runtime){
                     $cmake_user_make_rules_override="-DCMAKE_USER_MAKE_RULES_OVERRIDE=`"$(Join-Path $BIN_ROOT -ChildPath compiler_flag_overrides.cmake)`""   
-                }                
-                $BUILD_INFO.cmake_vars_define="-G `"$generator`" -DCMAKE_BUILD_TYPE:STRING=RELEASE $cmake_user_make_rules_override"   
-                #$BUILD_INFO.cmake_vars_define="-G ""Visual Studio 14 2015 Win64"" "   
+                }
+                                
+                $BUILD_INFO.cmake_vars_define="-G `"$generator`" -DCMAKE_BUILD_TYPE:STRING=$($BUILD_INFO.build_type) $cmake_user_make_rules_override"   
                 $null = $arg -match 'vs(\d+)'
                 $BUILD_INFO.vs_version=$Matches[1] 
                   
@@ -204,7 +230,7 @@ function detect_compiler(){
                 $BUILD_INFO.gcc_c_compiler=$gcc_exe
                 $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath 'g++.exe'
                 exit_if_not_exist $BUILD_INFO.gcc_cxx_compiler -type Leaf -msg "(没找到g++编译器)not found g++ in $BUILD_INFO.gcc_location"
-                $BUILD_INFO.cmake_vars_define="-G ""MinGW Makefiles"" -DCMAKE_C_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_c_compiler)"" -DCMAKE_CXX_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_cxx_compiler)"" -DCMAKE_BUILD_TYPE:STRING=RELEASE"
+                $BUILD_INFO.cmake_vars_define="-G ""MinGW Makefiles"" -DCMAKE_C_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_c_compiler)"" -DCMAKE_CXX_COMPILER:FILEPATH=""$($BUILD_INFO.gcc_cxx_compiler)"" -DCMAKE_BUILD_TYPE:STRING=$($BUILD_INFO.build_type)"
                 $BUILD_INFO.exe_linker_flags='-static -static-libstdc++ -static-libgcc'
                 # 寻找 mingw32 中的 make.exe，一般名为 mingw32-make
                 $find=(ls $BUILD_INFO.gcc_location -Filter *make.exe|Select-Object -Property BaseName|Select-Object -First 1 ).BaseName
@@ -229,6 +255,30 @@ function detect_compiler(){
     Write-Host "(没有找到指定的任何一种编译器，你确定安装了么?)not found compiler:$args" -ForegroundColor Yellow
     exit -1
 }
+# 针对当前编译器 忽略 $BUILD_INFO  中指定名称属性(置为 $null ),并输出提示信息
+# 该函数只能在编译已经确定之后调用
+function ignore_arguments_by_compiler(){
+    echo $args | foreach{
+        if($_ -is [array]){
+            if($_.count -ne 2){
+                call_stack
+                throw "(数组型参数长度必须为2),the argument with [arrray] type must have 2 elements"
+            }
+            $property=$_[0]
+            $param=$_[1]
+        }else{
+            $property=$param=$_
+        }        
+        if((Get-Member -inputobject $BUILD_INFO -name $property )  -eq $null){            
+            call_stack
+            throw  "(未定义属性)undefined property '$property'"
+        }                
+        if($BUILD_INFO.$property){
+            Write-Host "(忽略参数)ignore the argument '-$param' while $($BUILD_INFO.compiler) compiler"
+            $BUILD_INFO.$property=$null
+        }
+    }
+}
 # 初始化 $BUILD_INFO 编译参数配置对象
 function init_build_info(){
     Write-Host "初始化编译参数..."  -ForegroundColor Yellow
@@ -239,6 +289,7 @@ function init_build_info(){
     }
     if($BUILD_INFO.gcc_location ){        
         $BUILD_INFO.compiler='gcc'
+        Write-Host "(重置参数)force set option '-compiler' to 'gcc' while use '-gcc' option" -ForegroundColor Yellow
     }
     if($BUILD_INFO.compiler -eq 'auto'){
         $BUILD_INFO.compiler=detect_compiler  vs2013 vs2015 gcc
@@ -253,6 +304,7 @@ function init_build_info(){
             $BUILD_INFO.c_flags=$BUILD_INFO.cxx_flags='-m64'
         }
         test_gcc_compiler_capacity -gcc_compiler $BUILD_INFO.gcc_c_compiler -arch $BUILD_INFO.arch
+        ignore_arguments_by_compiler msvc_shared_runtime msvc_project
     }    
     make_msvc_env
 }
@@ -261,8 +313,16 @@ function init_build_info(){
 # 通过 $env:MSVC_ENV_MAKED 变量保证 该函数只会被调用一次
 function make_msvc_env(){
     args_not_null_empty_undefined BUILD_INFO
+    if( $BUILD_INFO.is_msvc()){
+        if($BUILD_INFO.msvc_project -eq 'jom'){
+            #  将jom加入搜索路径
+            if( "$(where_first jom)" -ne (Get-Command $JOM_INFO.exe ).Definition){
+                $env:Path="$($JOM_INFO.root);$env:Path"
+            }
+        }
+    }
     if( $env:MSVC_ENV_MAKED -ne $BUILD_INFO.arch -and $BUILD_INFO.is_msvc()){
-        if($BUILD_INFO.nmake_parallel){
+        if($BUILD_INFO.msvc_project -eq 'jom'){
             #  将jom加入搜索路径
             if( "$(where_first jom)" -ne (Get-Command $JOM_INFO.exe ).Definition){
                 $env:Path="$($JOM_INFO.root);$env:Path"
@@ -305,9 +365,7 @@ function build_gflags(){
     cmd /c $cmd
     exit_on_error
     remove_if_exist "$project.install_path()"
-    cmd /c "$($BUILD_INFO.make_exe) clean 2>&1"
-    exit_on_error
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -330,9 +388,7 @@ function build_glog(){
     $env:CXXFLAGS=''
     $env:CFLAGS  =''
     remove_if_exist "$project.install_path()"
-    cmd /c "$($BUILD_INFO.make_exe) clean 2>&1"
-    exit_on_error
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -354,7 +410,7 @@ function build_bzip2(){
     $env:CXXFLAGS=''
     $env:CFLAGS  =''
     remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -405,8 +461,8 @@ function build_boost(){
     }elseif($BUILD_INFO.compiler -eq 'vs2015'){
         $toolset='--toolset=msvc-14.0'
     }
-    if($BUILD_INFO.is_msvc()){
-        $runtime_link="runtime-link=$(if($BUILD_INFO.msvcrt){'shared'}else{'static'})"
+    if($BUILD_INFO.msvc_shared_runtime){
+        $runtime_link="runtime-link='shared'"
     }else{
         $runtime_link='runtime-link=static'
     }
@@ -434,8 +490,8 @@ function build_protobuf(){
     $project=$PROTOBUF_INFO
     $install_path=$project.install_path()
     $BUILD_INFO.begin_build()
-    if($BUILD_INFO.is_msvc()){
-        $protobuf_msvc_static_runtime="-Dprotobuf_MSVC_STATIC_RUNTIME=$(if($BUILD_INFO.msvcrt){'off'}else{'on'})"
+    if($BUILD_INFO.msvc_shared_runtime){
+        $protobuf_msvc_static_runtime="-Dprotobuf_MSVC_STATIC_RUNTIME=off"
     }
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) ../cmake $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
     	    -Dprotobuf_BUILD_TESTS=off 
@@ -444,7 +500,7 @@ function build_protobuf(){
     cmd /c $cmd
     exit_on_error
     remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -464,7 +520,7 @@ function build_hdf5(){
     cmd /c $cmd
     exit_on_error
     remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -488,7 +544,7 @@ function build_snappy(){
     $env:CXXFLAGS=''
     $env:CFLAGS  =''
     remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -502,7 +558,7 @@ function build_opencv(){
  
     $BUILD_INFO.begin_build()
     if($BUILD_INFO.is_msvc()){
-        $build_with_static_crt="-DBUILD_WITH_STATIC_CRT=$(if($BUILD_INFO.msvcrt){'off'}else{'on'})"
+        $build_with_static_crt="-DBUILD_WITH_STATIC_CRT=$(if($BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})"
     }elseif($BUILD_INFO.is_gcc()){
         $build_fat_java_lib='-DBUILD_FAT_JAVA_LIB=off'
     }
@@ -578,7 +634,7 @@ function build_opencv(){
     $env:CXXFLAGS=''
     $env:CFLAGS  =''
     remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -594,10 +650,7 @@ function build_leveldb(){
         $env:CXXFLAGS='/wd4312'
         $env:CFLAGS  ='/wd4312'
     }
-    $boost_use_static_runtime='on'
-    if($BUILD_INFO.is_msvc() -and $BUILD_INFO.msvcrt){
-        $boost_use_static_runtime='off'
-    }
+    $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DBOOST_ROOT=`"$boost_root`"
 	    -DBoost_NO_SYSTEM_PATHS=on 
@@ -608,7 +661,7 @@ function build_leveldb(){
     $env:CXXFLAGS=''
     $env:CFLAGS  =''
     remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -678,7 +731,7 @@ function build_lmdb(){
     cmd /c $cmd
     exit_on_error
     remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -739,10 +792,7 @@ function build_caffe([PSObject]$project){
         # MSVC 关闭编译警告
         $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
     }
-    $boost_use_static_runtime='on'
-    if($BUILD_INFO.is_msvc() -and $BUILD_INFO.msvcrt){
-        $boost_use_static_runtime='off'
-    }
+    $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
     # 宏定义 /DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES 用于解决 glog 连接报错
     $env:CXXFLAGS="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
     $env:CFLAGS  ="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
@@ -788,7 +838,7 @@ function build_caffe([PSObject]$project){
         }
     }
     remove_if_exist "$install_path"
-    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) install 2>&1"
+    cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
     $BUILD_INFO.end_build()
 }
@@ -797,7 +847,7 @@ function print_help(){
     if($(chcp ) -match '\.*936$'){
 	    echo "用法: $current_script_name [-names] [项目名称列表,...] [可选项...] 
 编译安装指定的项目,如果没有指定项目名称，则编译所有项目
-    -n,-names       项目名称列表(逗号分隔,忽略大小写)
+    -n,-names       项目名称列表(逗号分隔,忽略大小写,无空格)
                     可选的项目名称: $all_project_names 
 选项:
 	-c,-compiler    指定编译器类型,可选值: vs2013,vs2015,gcc,默认 auto(自动侦测)
@@ -805,8 +855,12 @@ function print_help(){
     -a,-arch        指定目标代码类型(x86,x86_64),默认auto(自动侦测)
     -g,-gcc         指定MingGW编译器的安装路径(bin文件夹),指定此值后，编译器类型(-compiler)自动设置为gcc
     -r,-revert      对项目强制执行fetch,将项目代码恢复到初始状态 
-    -j,-jom         使用jom并行编译,CPU满功率运行,比nmake提高数倍的速度,仅在使用MSVC编译时有效
-    -msvcrt         MSVC编译时使用 /MD 连接选项,默认 /MT
+    -msvc_project   指定cmake 生成的MSVC工程类型及编译工具,默认为 JOM,仅在使用MSVC编译时有效
+                    nmake: NMake Makefiles ,nmake单线程编译
+                    jom  : NMake Makefiles JOM,jom并行编译,CPU满功率运行,比nmake提高数倍的速度
+                    sln  : Visual Studio工程(.sln),msbuild并行编译
+    -md,-msvc_shared_runtime  
+                    MSVC编译时使用 /MD 连接选项,默认 /MT
     -buildReserved  保存编译生成工程文件及中间文件
 	-h,-help        显示帮助信息
 作者: guyadong@gdface.net
@@ -815,7 +869,7 @@ function print_help(){
         echo "usage: $current_script_name [-names] [PROJECT_NAME,...] [options...] 
 build & install projects specified by project name,
 all projects builded if no name argument
-    -n,-names       prject names(split by comma,ignore case)
+    -n,-names       prject names(split by comma,ignore case,without blank)
                     optional project names: $all_project_names 
 
 options:
@@ -825,7 +879,12 @@ options:
                     the '-compiler' option will be overwrited  to 'gcc' if this option defined 
     -r,-revert      force fetch the project,revert source code
     -j,-jom         jom parallel build with multiple CPU,effective only when MSVC
-    -msvcrt         use /MD link option,default /MT ,effective only when MSVC
+    -msvc_project   project file type generated by cmake,default JOM,effective only when MSVC
+                    nmake: NMake Makefiles ,serial build by nmake 
+                    jom  : NMake Makefiles JOM,parallel build by jom 
+                    sln  : Visual Studio工程(.sln),parallel build by MSBuild
+    -md,-msvc_shared_runtime  
+                    use /MD link option,default /MT ,effective only when MSVC
     -buildReserved  reserve thd build folder while project building finished
 	-h,-help        print the message
 author: guyadong@gdface.net
