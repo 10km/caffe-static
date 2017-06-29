@@ -270,28 +270,37 @@ function get_installed_softwares
         }
     }
 }
+# $system_first为$true时，优先搜索系统安装的msys2,否则直接使用自带的 msys2
+# 读取注册表返回查找 msys2
+# 如果找到，就返系统中msys2的安装路径
+# 如果没找到，就使用自带的 msys2
 function get_msys2_location(){
-    foreach($r in (get_installed_softwares | Where-Object {$_.name -match 'msys2'})){
-        if(Test-Path (Join-Path $r.Location,'bin' -ChildPath 'msys2_shell.cmd') -PathType Leaf){
-            return $r.Location
+    if($system_first){
+        foreach($r in (get_installed_softwares | Where-Object {$_.name -match 'msys2'})){
+            if(Test-Path (Join-Path $r.Location,'bin' -ChildPath 'msys2_shell.cmd') -PathType Leaf){
+                return $r.Location
+            }
         }
     }
     if( $MSYS2_INFO -and (Test-Path $MSYS2_INFO.root -PathType Container)){
         return $MSYS2_INFO.root
     }
 }
+# $system_first为$true时，优先搜索系统安装的解压缩软件,否则直接使用自带的7z
 # 读取注册表返回查找 haozip或7z
 # 如果找到，就返回对应的命令解压缩程序的全路径
 # 如果没找到，就使用自带的 7z
 function get_unpack_cmdexe(){
-    foreach($r in (get_installed_softwares | Where-Object {$_.name -match '(HaoZip|好压|7-zip)'})){
-        switch -regex ($r){
-            '(好压|haozip)'{ $cmdexe=Join-Path (ls $r.UninstallString).Directory -ChildPath 'HaoZipC.exe';}
-            '(7-zip|7z)' { $cmdexe=Join-Path $r.Location -ChildPath '7z.exe';}
-            Default { throw "(内部异常，不识别的软件名称 )unknow software name:$($r.Name)"}
-        }
-        if(Test-Path $cmdexe -PathType Leaf){
-            return $cmdexe
+    if($system_first){
+        foreach($r in (get_installed_softwares | Where-Object {$_.name -match '(HaoZip|好压|7-zip)'})){
+            switch -regex ($r){
+                '(好压|haozip)'{ $cmdexe=Join-Path (ls $r.UninstallString).Directory -ChildPath 'HaoZipC.exe';}
+                '(7-zip|7z)' { $cmdexe=Join-Path $r.Location -ChildPath '7z.exe';}
+                Default { throw "(内部异常，不识别的软件名称 )unknow software name:$($r.Name)"}
+            }
+            if(Test-Path $cmdexe -PathType Leaf){
+                return $cmdexe
+            }
         }
     }
     # 返回自带的 7z 做解压工具

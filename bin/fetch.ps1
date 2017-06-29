@@ -191,7 +191,7 @@ function fetch_msys2(){
         $MSYS2_INSTALL_LOCATION=$MSYS2_INFO.root
     }
     # 如果没有安装 perl,在 MSYS2 中安装 perl
-    Write-Host "(检查是否安装perl) check perl installed"
+    Write-Host "(安装perl) install perl if not present"
     $bash=[io.path]::Combine($($MSYS2_INSTALL_LOCATION),'usr','bin','bash')
     cmd /c "$bash -l -c `"if [ ! `$(which perl) ] ;then pacman -S --noconfirm perl ;fi; perl --version`" 2>&1"
     exit_on_error "(perl安装失败，请重试)fail to install perl,please try again"

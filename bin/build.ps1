@@ -927,17 +927,7 @@ init_build_info
 Write-Host 操作系统:$HOST_OS,$HOST_PROCESSOR -ForegroundColor Yellow
 Write-Host 编译器配置: -ForegroundColor Yellow
 $BUILD_INFO
-#build_gflags
-#build_glog
-#build_bzip2
-#build_boost
-#build_protobuf
-#build_hdf5
-#build_snappy
-#build_opencv
-#build_leveldb_bureau14
-#build_openblas
-#build_lmdb
+
 # 没有指定 names 参数时编译所有项目
 if(! $names){
     $names= $all_project_names
