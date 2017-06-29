@@ -206,7 +206,7 @@ function fetch_7z(){
         # 将 .msi 解压到指定路径
         $target_folder=Join-Path $TOOLS_ROOT -ChildPath $7Z_INFO.folder
         remove_if_exist $target_folder
-        msiexec /a "$(Join-Path $PACKAGE_ROOT -ChildPath $package)" /qn TARGETDIR="$target_folder"
+        cmd /c "msiexec /a `"$(Join-Path $PACKAGE_ROOT -ChildPath $package)`" /qn TARGETDIR=`"$target_folder`" 2>&1 "
         exit_on_error "(7-zip安装失败，请重试)fail to install 7-zip,please try again"
         # 将解开的 .msi 包中 Files/7-Zip 文件夹移到根目录，然后删除所有无用的文件
         $delitem=Get-ChildItem $target_folder
