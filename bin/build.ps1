@@ -673,7 +673,7 @@ function build_openblas(){
     if( ! $MSYS2_INSTALL_LOCATION ){
         throw "没有安装MSYS2,不能编译OpenBLAS,MSYS2 not installed,please install,run : ./fetch.ps1 msys2"
     }
-    $BINARY=$(if($BUILD_INFO.arch -eq 'x86'){32}else{64})    
+    $binary=$(if($BUILD_INFO.arch -eq 'x86'){32}else{64})    
     $mingw_make="mingw32-make"
     if($BUILD_INFO.is_gcc()){
         $mingw_bin=$BUILD_INFO.gcc_location
@@ -696,6 +696,7 @@ function build_openblas(){
     #  USE_FOR_MSVC 宏定义用于控制编译 openblas 静态库代码时不使用 libmsvcrt.a 中的函数
     #　参见 $openblase_source/Makefile.system 中 USE_FOR_MSVC 定义说明    
     $use_for_msvc=$(if($BUILD_INFO.is_msvc()){' export USE_FOR_MSVC=1 ; '}else{''})
+    $debug_build=$(if($BUILD_INFO.build_type -eq 'debug'){'DEBUG=1'}else{''})
     args_not_null_empty_undefined MAKE_JOBS
     remove_if_exist "$install_path"
     # MSYS2 下的gcc 编译脚本 (bash)
@@ -709,8 +710,8 @@ function build_openblas(){
         echo start make clean,please waiting...;
         $mingw_make clean ;
         if [ ! `$? ];then exit -1;fi; 
-        # BINARY用于指定编译32位还是64位代码 -j 选项用于指定多线程编译
-        $mingw_make -j $MAKE_JOBS BINARY=$BINARY NOFORTRAN=1 NO_LAPACKE=1 NO_SHARED=1 ; 
+        # BINARY 用于指定编译32位还是64位代码 -j 选项用于指定多线程编译
+        $mingw_make -j $MAKE_JOBS BINARY=$binary $debug_build NOFORTRAN=1 NO_LAPACKE=1 NO_SHARED=1 ; 
         if [ ! `$? ];then exit -1;fi;
         # 安装到 $install_path 指定的位置
         $mingw_make install PREFIX=`"$install_path`" NO_LAPACKE=1 NO_SHARED=1"
@@ -770,7 +771,7 @@ function build_caffe([PSObject]$project){
     check_component $opencv_cmake_dir $OPENCV_INFO ([ref]$error_message)
     # 缺少依赖库时报错退出
     if($error_message.count){
-        Write-Host ($error_message -join '`n') -ForegroundColor Yellow
+        echo $error_message
         exit -1
     }
     $BUILD_INFO.begin_build()

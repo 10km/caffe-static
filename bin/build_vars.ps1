@@ -22,10 +22,14 @@ function install_suffix([string]$prefix){
     args_not_null_empty_undefined prefix HOST_OS BUILD_INFO
     if($BUILD_INFO.is_msvc()){
         $link=$(if($BUILD_INFO.msvc_shared_runtime){'_md'}else{'_mt'})
+        $c=$BUILD_INFO.vc_version.$($BUILD_INFO.compiler)
     }else{
         $link=''
-    }    
-    return "${prefix}_${HOST_OS}_$($BUILD_INFO.compiler)_$($BUILD_INFO.arch)$link"
+        $c=$BUILD_INFO.compiler
+    }
+    
+    $debug=$(if($BUILD_INFO.build_type -eq 'debug' ){'_d'}else{''})
+    return "${prefix}_${HOST_OS}_${c}_$($BUILD_INFO.arch)$link$debug"
 }
 # 根据哈希表提供的信息创建project info对象
 function create_project_info([hashtable]$hash,[switch]$no_install_path){
