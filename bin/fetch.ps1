@@ -237,7 +237,15 @@ function modify_bzip2_1_0_5(){
 	$bzip2_cmake=[io.path]::combine($SOURCE_ROOT,$BZIP2_INFO.folder,"CMakeLists.txt")
 	echo "function:$($MyInvocation.MyCommand) -> ÐÞ¸Ä $bzip2_cmake ,É¾³ý SHARED ²ÎÊý" 
     (Get-Content $bzip2_cmake) -replace '(^\s*ADD_LIBRARY\s*\(\s*bz2\s*)SHARED','#modified by guyadong,remove SHARED
-$1'| Out-File $bzip2_cmake -Encoding ascii -Force    
+$1'| Out-File $bzip2_cmake -Encoding ascii -Force
+    (Get-Content $bzip2_cmake) -replace '^\s*GET_TARGET_PROPERTY\s*\(\s*BZIP2_LOCATION\s+bzip2\s+LOCATION\)\s*$','$0
+# added by guyadong 
+if(MSVC)
+	string(REPLACE "$(Configuration)" "\${CMAKE_INSTALL_CONFIG_NAME}" BZIP2_LOCATION "${BZIP2_LOCATION}")
+endif(MSVC)
+'| Out-File $bzip2_cmake -Encoding ascii -Force    
+    (Get-Content $bzip2_cmake) -replace '(RENAME\s+bunzip2)(\s*\))','$1${CMAKE_EXECUTABLE_SUFFIX}$2 #modified by guyadong,add exe suffix'| Out-File $bzip2_cmake -Encoding ascii -Force
+    (Get-Content $bzip2_cmake) -replace   '(RENAME\s+bzcat)(\s*\))','$1${CMAKE_EXECUTABLE_SUFFIX}$2 #modified by guyadong,add exe suffix'| Out-File $bzip2_cmake -Encoding ascii -Force
     exit_on_error
 }
 #################################################################
