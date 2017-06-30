@@ -892,7 +892,7 @@ function print_help(){
 	    echo "用法: $current_script_name [-names] [项目名称列表,...] [可选项...] 
 编译安装指定的项目,如果没有指定项目名称，则编译所有项目
     -n,-names       项目名称列表(逗号分隔,忽略大小写,无空格)
-                    可选的项目名称: $all_project_names 
+                    可选的项目名称: $($all_project_names -join ',') 
 选项:
     -c,-compiler    指定编译器类型,可选值: vs2013,vs2015,gcc,默认 auto(自动侦测)
                     指定为gcc时,如果没有检测到MinGW编译器,则使用本系统自带的MinGW编译器
@@ -915,7 +915,7 @@ function print_help(){
 build & install projects specified by project name,
 all projects builded if no name argument
     -n,-names       prject names(split by comma,ignore case,without blank)
-                    optional project names: $all_project_names 
+                    optional project names: $($all_project_names -join ',')
 
 options:
     -c,-compiler    compiler type,valid value:'vs2013','vs2015','gcc',default 'auto' 
