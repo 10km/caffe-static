@@ -900,9 +900,9 @@ function print_help(){
     -g,-gcc         指定MingGW编译器的安装路径(bin文件夹),指定此值后，编译器类型(-compiler)自动设置为gcc
     -r,-revert      对项目强制执行fetch,将项目代码恢复到初始状态 
     -msvc_project   指定cmake 生成的MSVC工程类型及编译工具,默认为 JOM,仅在使用MSVC编译时有效
-                    nmake: NMake Makefiles ,nmake单线程编译
-                    jom  : NMake Makefiles JOM,jom并行编译,CPU满功率运行,比nmake提高数倍的速度
-                    sln  : Visual Studio工程(.sln),msbuild并行编译
+                    nmake: NMake Makefiles ,nmake 单线程编译
+                    jom  : NMake Makefiles JOM,jom 并行编译,CPU满功率运行,比nmake提高数倍的速度
+                    sln  : Visual Studio工程(.sln),MSBuild 并行编译
     -md,-msvc_shared_runtime  
                     MSVC编译时使用 /MD 连接选项,默认 /MT
     -debug          编译Debug版本,默认Release
