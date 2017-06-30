@@ -349,7 +349,7 @@ function print_help(){
     if($(chcp ) -match '\.*936$'){
 	    echo "用法: $my_name [-names] [项目名称列表,...] [可选项...] 
 下载并解压指定的项目，如果没有指定项目名称，则下载解压所有项目
-    -n,-names       项目名称列表(逗号分隔,忽略大小写)
+    -n,-names       项目名称列表(逗号分隔,忽略大小写,无空格)
                     可选的项目名称: $all_names 
 选项:
 	-v,-verbose     显示详细信息
@@ -363,7 +363,7 @@ function print_help(){
         echo "usage: $my_name [-names] [PROJECT_NAME,...] [options...] 
 download and extract projects specified by project name,
 all projects fetched without argument
-    -n,-names       prject names(split by comma,ignore case)
+    -n,-names       prject names(split by comma,ignore case,without blank)
                     optional project names: $all_names 
 
 options:
