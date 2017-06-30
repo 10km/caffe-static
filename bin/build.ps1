@@ -63,8 +63,12 @@ $BUILD_INFO=New-Object PSObject -Property @{
     # install 任务名称,使用msbuild编译msvc工程时名称为'install.vcxproj'
     make_install_target='install'
     # 项目编译成功后是否清除 build文件夹
-    build_type=$(if($debug){'debug'}else{'Release'})
+    build_type=$(if($debug){'debug'}else{'release'})
     remove_build= ! $build_reserved
+    # 环境变量快照,由成员 save_env_snapshoot 保存
+    # 为保证每个 build_xxxx 函数执行时，环境变量互不干扰，
+    # 在开始编译前调用 restore_env_snapshoot 将此变量中保存的所有环境变量恢复到 save_env_snapshoot 调用时的状态
+    env_snapshoot=$null
 }
 # $BUILD_INFO 成员方法 
 # 生成调用 cmake 时的默认命令行参数
@@ -108,6 +112,7 @@ Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name begin_build -
         clean_folder $build
         pushd "$build"
     }
+    $BUILD_INFO.restore_env_snapshoot()
 }
 # $BUILD_INFO 成员方法 
 # 退出项目文件夹，清空 build 文件夹,必须与 prepare_build 配对使用
@@ -121,7 +126,32 @@ Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name end_build -Va
     }
     popd
 }
-
+# $BUILD_INFO 成员方法 
+# 保存所有当前环境变量到 env_snapshoot
+# 该函数只能被调用一次
+Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name save_env_snapshoot -Value {
+    if($this.env_snapshoot){
+        call_stack
+        throw "(本函数只允许被调用一次),the function can only be called once "
+    }
+    $this.env_snapshoot=cmd /c set
+}
+# $BUILD_INFO 成员方法 
+# 恢复 env_snapshoot 中保存的环境变量
+# 该函数只能在调用 save_env_snapshoot 后被调用
+Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name restore_env_snapshoot -Value {
+    if(!$this.env_snapshoot){
+        call_stack
+        throw "(该函数只能在调用 save_env_snapshoot 后被调用),the function must be called after 'save_env_snapshoot' called  "
+    }
+    $this.env_snapshoot|
+    foreach {
+        if ($_ -match "=") {
+        $v = $_.split("=")
+        Set-Item -Force -Path "env:$($v[0])"  -Value "$($v[1])"
+        }
+    }
+}
 # include 公共全局变量    
 . "$PSScriptRoot/build_vars.ps1"
 
@@ -308,6 +338,7 @@ function init_build_info(){
         ignore_arguments_by_compiler msvc_shared_runtime msvc_project
     }    
     make_msvc_env
+    $BUILD_INFO.save_env_snapshoot()
 }
 # 调用 vcvarsall.bat 创建msvc编译环境
 # 当编译器选择 gcc 不会执行该函数
@@ -438,8 +469,22 @@ function build_boost(){
     }else{
         $env:BOOST_BUILD_PATH=''
         remove_if_exist "$jam"
-        $toolset='toolset=msvc'
+        if($BUILD_INFO.compiler -eq 'vs2013'){
+            $toolset='toolset=msvc-12.0'
+        }elseif($BUILD_INFO.compiler -eq 'vs2015'){
+            $toolset='toolset=msvc-14.0'
+        }
     }
+    if($BUILD_INFO.arch -eq 'x86_64'){
+        $address_model='address-model=64'
+    }
+    
+    if($BUILD_INFO.msvc_shared_runtime){
+        $runtime_link="runtime-link=shared"
+    }else{
+        $runtime_link='runtime-link=static'
+    }
+    
     # 所有库列表
     # atomic chrono container context coroutine date_time exception filesystem 
     # graph graph_parallel iostreams locale log math mpi program_options python 
@@ -454,19 +499,7 @@ function build_boost(){
     cmd /c "bjam --clean 2>&1"
     exit_on_error
     remove_if_exist "$install_path"    
-    if($BUILD_INFO.arch -eq 'x86_64'){
-        $address_model='address-model=64'
-    }
-    if($BUILD_INFO.compiler -eq 'vs2013'){
-        $toolset='--toolset=msvc-12.0'
-    }elseif($BUILD_INFO.compiler -eq 'vs2015'){
-        $toolset='--toolset=msvc-14.0'
-    }
-    if($BUILD_INFO.msvc_shared_runtime){
-        $runtime_link="runtime-link='shared'"
-    }else{
-        $runtime_link='runtime-link=static'
-    }
+
     # --prefix 指定安装位置
     # --debug-configuration 编译时显示加载的配置信息
     # -q 参数指示出错就停止编译
@@ -476,12 +509,15 @@ function build_boost(){
     # -jx 并发编译线程数
     Write-Host "boost compiling..." -ForegroundColor Yellow
     args_not_null_empty_undefined MAKE_JOBS
-    $cmd=combine_multi_line "bjam --prefix=$install_path $address_model $toolset -a -q -d+3 -j$MAKE_JOBS --debug-configuration $toolset link=static $runtime_link install 
+    $cmd=combine_multi_line "bjam --prefix=$install_path -a -q -d+3 -j$MAKE_JOBS --debug-configuration   
         --with-date_time
         --with-system
         --with-thread
         --with-filesystem
-        --with-regex 2>&1"
+        --with-regex 
+        link=static 
+        variant=$($BUILD_INFO.build_type) $runtime_link $toolset $address_model 
+        install 2>&1"
     cmd /c $cmd 
     exit_on_error
     $BUILD_INFO.end_build()
@@ -697,7 +733,8 @@ function build_openblas(){
     #　参见 $openblase_source/Makefile.system 中 USE_FOR_MSVC 定义说明    
     $use_for_msvc=$(if($BUILD_INFO.is_msvc()){' export USE_FOR_MSVC=1 ; '}else{''})
     #$debug_build=$(if($BUILD_INFO.build_type -eq 'debug'){'DEBUG=1'}else{''})
-    $debug_build=''
+    # openblas 编译release版本,不受$BUILD_INFO.build_type控制,
+    $debug_build='DEBUG=0'
     args_not_null_empty_undefined MAKE_JOBS
     remove_if_exist "$install_path"
     # MSYS2 下的gcc 编译脚本 (bash)
