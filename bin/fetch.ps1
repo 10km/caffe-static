@@ -8,6 +8,7 @@ author: guyadong@gdface.net
 #>
 param(
 [string[]]$names ,
+[string]$modify_caffe,
 [switch]$force,
 [switch]$verbose,
 [alias('list')]
@@ -94,7 +95,7 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
 	$package_path=Join-Path $sourceRoot $package
 	if( (need_download $package_path $md5)[-1] ){
         if($list_only){
-            throw "${NEED_DOWNLOAD_PREFIX}: download $uri and save as $package_path"
+            throw "${NEED_DOWNLOAD_PREFIX}: download $uri and SAVE AS $package_path"
         }	
 		remove_if_exist $package_path
 		Write-Host "(下载)downloading" $info.prefix $version -ForegroundColor Yellow
@@ -112,7 +113,7 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
             Start-Sleep -Seconds 2
         }
         if( $md5 -and (md5sum $package_path) -ne $md5){
-            Write-Host "$uri `nfail to download,try to manually download  the url and save as $package_path" -ForegroundColor Yellow
+            Write-Host "$uri `nfail to download,try to manually download the url and SAVE AS $package_path" -ForegroundColor Yellow
             Write-Host "下载失败,请尝试手工下载" -ForegroundColor Yellow
             exit -1
         }
@@ -127,7 +128,7 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
 }
 # 从github上下载源码
 # 如果本地不存在指定的zip包，或$md5为空或$md5校验码不匹配则从github下载
-# 如果本地存在指定的zip包，且$md5为空,则根据$FORCE_DOWNLOAD_IF_EXIST决定是否跳过下载直接解压
+# 如果本地存在指定的zip包，且 $md5 为空,则根据 $FORCE_DOWNLOAD_IF_EXIST 决定是否跳过下载直接解压
 # $info 项目配置信息 $xxxx_INFO
 function fetch_from_github([PSObject]$info){
 	args_not_null_empty_undefined info
@@ -279,10 +280,14 @@ function modify_ssd(){
 }
 # 基于 caffe 项目代码通用补丁函数, 
 # 所有 caffe 系列项目fetch后 应先调用此函数做修补
-function modify_caffe_base([PSObject]$caffe_base_project){
-    args_not_null_empty_undefined caffe_base_project
-	$caffe_root=Join-Path -Path $SOURCE_ROOT -ChildPath $caffe_base_project.folder
+# $caffe_root caffe 源码根目录
+function modify_caffe_folder([string]$caffe_root){
+    args_not_null_empty_undefined caffe_root
+    exit_if_not_exist $caffe_root -type Container
+    # 通过是不是有/include/caffe 文件夹判断是不是 caffe 项目
+    exit_if_not_exist ([io.path]::Combine($caffe_root,'include','caffe')) -type Container -msg "$caffe_root 好像不是个 caffe 源码文件夹"
     $cmakelists_root=Join-Path $caffe_root -ChildPath CMakeLists.txt
+    exit_if_not_exist $cmakelists_root -type Leaf
     Write-Host "function:$($MyInvocation.MyCommand) ->  caffe 项目代码通用修复"
     $content=Get-Content $cmakelists_root
     $regex_disable_download='(^\s*include\s*\(\s*cmake/WindowsDownloadPrebuiltDependencies\.cmake\s*\))'
@@ -304,6 +309,12 @@ $1static$2'| Out-File $dependencies_cmake -Encoding ascii -Force
 	echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $caffe_root"	
     cp -Path ([io.path]::Combine($PATCH_ROOT,'caffe_base','*')) -Destination $caffe_root -Recurse -Force -Verbose    
 	exit_on_error 
+}
+# 基于 caffe 项目代码通用补丁函数, 
+# 所有 caffe 系列项目fetch后 应先调用此函数做修补
+function modify_caffe_base([PSObject]$caffe_base_project){
+    args_not_null_empty_undefined caffe_base_project
+    modify_caffe_folder (Join-Path -Path $SOURCE_ROOT -ChildPath $caffe_base_project.folder)
 }
 ######################################################
 function modify_leveldb(){
@@ -352,10 +363,11 @@ function print_help(){
     -n,-names       项目名称列表(逗号分隔,忽略大小写,无空格)
                     可选的项目名称: $all_names 
 选项:
+    -modify_caffe   为指定的 caffe 源码更新补丁文件,参见本脚本源码中 modify_caffe_folder 函数
 	-v,-verbose     显示详细信息
 	-f,-force       强制下载没有指定版本号的项目
     -list,-list_only 不执行下载解压缩,只列出需要下载的依赖包,当网络条件不好的时候,
-                    根据表中列出的地址手工下载依赖包
+                    可以根据表中列出的地址手工下载依赖包
 	-h,-help        显示帮助信息
 作者: guyadong@gdface.net
 "
@@ -367,6 +379,7 @@ all projects fetched without argument
                     optional project names: $all_names 
 
 options:
+    -modify_caffe   update path for caffe base project,see also 'modify_caffe_folder' function in myself source
 	-v,-verbose     list verbosely
 	-f,-force       force download if package without version is exist  
     -list,-list_only without fetching ,only output dependent package list which need download.
@@ -389,6 +402,10 @@ $SKIP_DOWNLOAD_PREFIX='available package'
 if($help){
     print_help  
     exit 0
+}
+if($modify_caffe){
+    modify_caffe_folder $modify_caffe
+    exit 0    
 }
 if(! $names){
     $names= $all_names
