@@ -361,7 +361,7 @@ function print_help(){
 	    echo "用法: $my_name [-names] [项目名称列表,...] [可选项...] 
 下载并解压指定的项目，如果没有指定项目名称，则下载解压所有项目
     -n,-names       项目名称列表(逗号分隔,忽略大小写,无空格)
-                    可选的项目名称: $all_names 
+                    可选的项目名称: $($all_names -join ',')
 选项:
     -modify_caffe   为指定的 caffe 源码更新补丁文件,参见本脚本源码中 modify_caffe_folder 函数
 	-v,-verbose     显示详细信息
@@ -376,7 +376,7 @@ function print_help(){
 download and extract projects specified by project name,
 all projects fetched without argument
     -n,-names       prject names(split by comma,ignore case,without blank)
-                    optional project names: $all_names 
+                    optional project names: $($all_names -join ',') 
 
 options:
     -modify_caffe   update path for caffe base project,see also 'modify_caffe_folder' function in myself source
