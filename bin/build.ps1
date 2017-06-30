@@ -648,8 +648,8 @@ function build_leveldb(){
     $BUILD_INFO.begin_build()
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
-        $env:CXXFLAGS='/wd4312'
-        $env:CFLAGS  ='/wd4312'
+        $env:CXXFLAGS='/wd4312 /wd4244 /wd4018'
+        $env:CFLAGS  ='/wd4312 /wd4244 /wd4018'
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
@@ -696,13 +696,14 @@ function build_openblas(){
     #  USE_FOR_MSVC 宏定义用于控制编译 openblas 静态库代码时不使用 libmsvcrt.a 中的函数
     #　参见 $openblase_source/Makefile.system 中 USE_FOR_MSVC 定义说明    
     $use_for_msvc=$(if($BUILD_INFO.is_msvc()){' export USE_FOR_MSVC=1 ; '}else{''})
-    $debug_build=$(if($BUILD_INFO.build_type -eq 'debug'){'DEBUG=1'}else{''})
+    #$debug_build=$(if($BUILD_INFO.build_type -eq 'debug'){'DEBUG=1'}else{''})
+    $debug_build=''
     args_not_null_empty_undefined MAKE_JOBS
     remove_if_exist "$install_path"
     # MSYS2 下的gcc 编译脚本 (bash)
     # 任何一步出错即退出脚本 exit code = -1
     # 每一行必须 ; 号结尾(最后一行除外)
-    # #号开头注释行会被 combine_multi_line 函数删除，不会出现在运行脚本中
+    # #号开头注释行会被 combine_multi_line 函数删除,不会出现在运行脚本中
     $bashcmd="export PATH=$(unix_path($mingw_bin)):`$PATH ;$use_for_msvc
         # 切换到 OpenBLAS 源码文件夹 
         cd `"$(unix_path $src_root)`" ; 
@@ -793,12 +794,16 @@ function build_caffe([PSObject]$project){
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
         $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
+        #if($BUILD_INFO.build_type -eq 'debug'){
+        #    $exe_link_opetion='/SAFESEH:NO'
+        #}
+        
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
     # 宏定义 /DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES 用于解决 glog 连接报错
     $env:CXXFLAGS="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
     $env:CFLAGS  ="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define('','',$exe_link_opetion)) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DCOPY_PREREQUISITES=off
         -DINSTALL_PREREQUISITES=off
 	    -DGLOG_ROOT_DIR=`"$($GLOG_INFO.install_path())`"
@@ -812,12 +817,12 @@ function build_caffe([PSObject]$project){
 	    -DSNAPPY_ROOT_DIR=`"$($SNAPPY_INFO.install_path())`"
 	    -DOpenCV_DIR=`"$opencv_cmake_dir`" 
         -DProtobuf_DIR=`"$(Join-Path $PROTOBUF_INFO.install_path() -ChildPath cmake)`"
-	    -DPROTOBUF_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf$lib_suffix" )`"
-	    -DPROTOBUF_PROTOC_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotoc$lib_suffix")`"
-	    -DPROTOBUF_LITE_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf-lite$lib_suffix")`"
-	    -DPROTOBUF_PROTOC_EXECUTABLE=`"$([io.path]::Combine($($PROTOBUF_INFO.install_path()),'bin','protoc.exe'))`"
+#	    -DPROTOBUF_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf$lib_suffix" )`"
+#	    -DPROTOBUF_PROTOC_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotoc$lib_suffix")`"
+#	    -DPROTOBUF_LITE_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf-lite$lib_suffix")`"
+#	    -DPROTOBUF_PROTOC_EXECUTABLE=`"$([io.path]::Combine($($PROTOBUF_INFO.install_path()),'bin','protoc.exe'))`"
 # PROTOBUF_INCLUDE_DIR 提供的路径分隔符必须是/,否则会引起 cmake 报错
-	    -DPROTOBUF_INCLUDE_DIR=`"$($PROTOBUF_INFO.install_path().replace('\','/'))/include`"
+#	    -DPROTOBUF_INCLUDE_DIR=`"$($PROTOBUF_INFO.install_path().replace('\','/'))/include`"
 	    -DCPU_ONLY=ON 
 	    -DBLAS=Open 
 	    -DBUILD_SHARED_LIBS=off 
