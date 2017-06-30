@@ -10,6 +10,8 @@ param(
 [string[]]$names ,
 [switch]$force,
 [switch]$verbose,
+[alias('list')]
+[switch]$list_only,
 [switch]$help
 )
 
@@ -90,7 +92,10 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
         $package=$info.folder + ".zip"
     }
 	$package_path=Join-Path $sourceRoot $package
-	if( (need_download $package_path $md5)[-1] ){	
+	if( (need_download $package_path $md5)[-1] ){
+        if($list_only){
+            throw "${NEED_DOWNLOAD_PREFIX}: download $uri and save as $package_path"
+        }	
 		remove_if_exist $package_path
 		Write-Host "(下载)downloading" $info.prefix $version -ForegroundColor Yellow
         # 设置为Tls12 解决报错：
@@ -111,7 +116,9 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
             Write-Host "下载失败,请尝试手工下载" -ForegroundColor Yellow
             exit -1
         }
-	}
+	}elseif($list_only){
+        throw "${SKIP_DOWNLOAD_PREFIX}: $package_path"
+    }	
     if(!$noUnpack){
 	    remove_if_exist (Join-Path $targetRoot $info.folder)
 	    Write-Host "(解压缩)extracting file from $package_path" -ForegroundColor Yellow
@@ -190,6 +197,7 @@ function fetch_msys2(){
         download_and_extract -info $MSYS2_INFO -uri $uri -targetRoot $TOOLS_ROOT
         $MSYS2_INSTALL_LOCATION=$MSYS2_INFO.root
     }
+    if($list_only){ return }
     # 如果没有安装 perl,在 MSYS2 中安装 perl
     Write-Host "(安装perl) install perl if not present"
     $bash=[io.path]::Combine($($MSYS2_INSTALL_LOCATION),'usr','bin','bash')
@@ -346,6 +354,8 @@ function print_help(){
 选项:
 	-v,-verbose     显示详细信息
 	-f,-force       强制下载没有指定版本号的项目
+    -list,-list_only 不执行下载解压缩,只列出需要下载的依赖包,当网络条件不好的时候,
+                    根据表中列出的地址手工下载依赖包
 	-h,-help        显示帮助信息
 作者: guyadong@gdface.net
 "
@@ -359,6 +369,7 @@ all projects fetched without argument
 options:
 	-v,-verbose     list verbosely
 	-f,-force       force download if package without version is exist  
+    -list,-list_only without fetching ,only output dependent package list which need download.
 	-h,-help        print the message
 author: guyadong@gdface.net
 "
@@ -372,6 +383,8 @@ $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 $FORCE_DOWNLOAD_IF_EXIST=$force
 # 运行过程中是否显示显示详细的进行步骤
 $VERBOSE_EXTRACT=$verbose
+$NEED_DOWNLOAD_PREFIX='dependend package'
+$SKIP_DOWNLOAD_PREFIX='available package'
 # 检查所有项目名称参数，如果是无效值则报错退出
 if($help){
     print_help  
@@ -396,7 +409,17 @@ if($UNPACK_TOOL){
 }
 Write-Host "解压缩工具(unpack tool):$UNPACK_TOOL" -ForegroundColor Yellow
 # 顺序下载解压 $names 中指定的项目
-echo $names| foreach {  
+echo $names| foreach {
+    trap{
+        if($_.Exception.Message.StartsWith($NEED_DOWNLOAD_PREFIX)){
+            Write-Host $_
+            continue            
+        }elseif($_.Exception.Message.StartsWith($SKIP_DOWNLOAD_PREFIX)){
+            Write-Host $_
+            continue
+        }
+        break;
+    }  
     if( $_){
         &"fetch_$($_.ToLower())"  
     }    
