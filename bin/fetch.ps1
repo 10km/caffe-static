@@ -364,11 +364,11 @@ function print_help(){
                     可选的项目名称: $($all_names -join ',')
 选项:
     -modify_caffe   为指定的 caffe 源码更新补丁文件,参见本脚本源码中 modify_caffe_folder 函数
-	-v,-verbose     显示详细信息
-	-f,-force       强制下载没有指定版本号的项目
+    -v,-verbose     显示详细信息
+    -f,-force       强制下载没有指定版本号的项目
     -list,-list_only 不执行下载解压缩,只列出需要下载的依赖包,当网络条件不好的时候,
                     可以根据表中列出的地址手工下载依赖包
-	-h,-help        显示帮助信息
+    -h,-help        显示帮助信息
 作者: guyadong@gdface.net
 "
     }else{
@@ -380,10 +380,10 @@ all projects fetched without argument
 
 options:
     -modify_caffe   update path for caffe base project,see also 'modify_caffe_folder' function in myself source
-	-v,-verbose     list verbosely
-	-f,-force       force download if package without version is exist  
+    -v,-verbose     list verbosely
+    -f,-force       force download if package without version is exist  
     -list,-list_only without fetching ,only output dependent package list which need download.
-	-h,-help        print the message
+    -h,-help        print the message
 author: guyadong@gdface.net
 "
     }

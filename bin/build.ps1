@@ -894,7 +894,7 @@ function print_help(){
     -n,-names       项目名称列表(逗号分隔,忽略大小写,无空格)
                     可选的项目名称: $all_project_names 
 选项:
-	-c,-compiler    指定编译器类型,可选值: vs2013,vs2015,gcc,默认 auto(自动侦测)
+    -c,-compiler    指定编译器类型,可选值: vs2013,vs2015,gcc,默认 auto(自动侦测)
                     指定为gcc时,如果没有检测到MinGW编译器,则使用本系统自带的MinGW编译器
     -a,-arch        指定目标代码类型(x86,x86_64),默认auto(自动侦测)
     -g,-gcc         指定MingGW编译器的安装路径(bin文件夹),指定此值后，编译器类型(-compiler)自动设置为gcc
@@ -907,7 +907,7 @@ function print_help(){
                     MSVC编译时使用 /MD 连接选项,默认 /MT
     -debug          编译Debug版本,默认Release
     -build_reserved 保存编译生成工程文件及中间文件
-	-h,-help        显示帮助信息
+    -h,-help        显示帮助信息
 作者: guyadong@gdface.net
 "
     }else{
@@ -918,7 +918,7 @@ all projects builded if no name argument
                     optional project names: $all_project_names 
 
 options:
-	-c,-compiler    compiler type,valid value:'vs2013','vs2015','gcc',default 'auto' 
+    -c,-compiler    compiler type,valid value:'vs2013','vs2015','gcc',default 'auto' 
     -a,-arch        target processor architecture: 'x86','x86_64',default 'auto'
     -g,-gcc         MinGW compiler location('bin' folder,such as 'P:\MinGW\mingw64\bin'),
                     the '-compiler' option will be overwrited  to 'gcc' if this option defined 
