@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
 
-project(leveldb CXX)    
-set(CMAKE_DEBUG_POSTFIX "d")
+project(leveldb CXX)
+# modified by guyadong    
+#set(CMAKE_DEBUG_POSTFIX "d")
 
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREAD ON)
@@ -168,9 +169,9 @@ add_executable(leveldbutil
 
 target_link_libraries(leveldbutil
     leveldb)
-
-set_target_properties(leveldbutil PROPERTIES
-    DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+# modified by guyadong
+#set_target_properties(leveldbutil PROPERTIES
+#    DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
 
 # we distribute the leveldbutil as it might be useful
 install(TARGETS leveldbutil
@@ -222,9 +223,9 @@ function(LEVELDB_ADD_TEST TESTNAME TESTFILE)
     target_link_libraries(leveldb_${TESTNAME}_test
         leveldb_test_rt
         leveldb)
-
-    set_target_properties(leveldb_${TESTNAME}_test PROPERTIES
-        DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+# modified by guyadong
+#    set_target_properties(leveldb_${TESTNAME}_test PROPERTIES
+#        DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
 
     add_test(NAME leveldb_${TESTNAME}_test COMMAND leveldb_${TESTNAME}_test)
 
