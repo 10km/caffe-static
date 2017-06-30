@@ -284,8 +284,8 @@ function modify_ssd(){
 function modify_caffe_folder([string]$caffe_root){
     args_not_null_empty_undefined caffe_root
     exit_if_not_exist $caffe_root -type Container
-    # 通过是不是有/include/caffe 文件夹判断是不是 caffe 项目
-    exit_if_not_exist ([io.path]::Combine($caffe_root,'include','caffe')) -type Container -msg "$caffe_root 好像不是个 caffe 源码文件夹"
+    # 通过是不是有src/caffe 文件夹判断是不是 caffe 项目
+    exit_if_not_exist ([io.path]::Combine($caffe_root,'src','caffe')) -type Container -msg "$caffe_root 好像不是个 caffe 源码文件夹"
     $cmakelists_root=Join-Path $caffe_root -ChildPath CMakeLists.txt
     exit_if_not_exist $cmakelists_root -type Leaf
     Write-Host "function:$($MyInvocation.MyCommand) ->  caffe 项目代码通用修复"

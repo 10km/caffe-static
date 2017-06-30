@@ -37,8 +37,14 @@ function create_project_info([hashtable]$hash,[switch]$no_install_path){
     $info= New-Object PSObject  -Property $hash
     # 没有定义 prefix 的不定义install_path
     if($info.prefix -and !$no_install_path){
-	    #Add-Member -InputObject $info -NotePropertyName install_path -NotePropertyValue $(Join-Path -ChildPath $(install_suffix $info.prefix) -Path $INSTALL_PREFIX_ROOT) 
-        Add-Member -InputObject $info -MemberType ScriptMethod -Name install_path -Value {$(Join-Path -ChildPath $(install_suffix $this.prefix) -Path $INSTALL_PREFIX_ROOT)}
+        Add-Member -InputObject $info -MemberType ScriptMethod -Name install_path -Value {
+            # 如果有属性 install_prefix 且不为空则返回此值
+            if($this.install_prefix){
+                $this.install_prefix}
+            else{
+                $(Join-Path -ChildPath $(install_suffix $this.prefix) -Path $INSTALL_PREFIX_ROOT)
+            }
+        }
     }
     $f=$info.prefix
     # 如果没有定义版本号，则folder与prefix相同
@@ -204,7 +210,15 @@ $CAFFE_WINDOWS_INFO= create_project_info @{
     version="windows"
     owner="BVLC"	
 }
-
+# 自定义 caffe 项目配置对象 
+$CAFFE_CUSTOM_INFO= create_project_info @{
+	prefix='caffe'
+    version='custom'
+    # 安装路径
+    install_prefix=$null
+    # 源码路径
+    root=$null
+}
 $cmake_hash_linux=@{
     prefix="cmake"
     version="3.8.2"

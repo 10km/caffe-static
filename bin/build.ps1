@@ -9,6 +9,12 @@ param(
 [string]$compiler='auto',
 [ValidateSet('auto','x86','x86_64')]
 [string]$arch='auto',
+[alias('folder')]
+[string]$custom_caffe_folder,
+[alias('prefix')]
+[string]$custom_install_prefix,
+[alias('skip')]
+[switch]$custom_skip_patch,
 [ValidateSet('nmake','jom','sln')]
 [string]$msvc_project='jom',
 [string]$gcc=$DEFAULT_GCC,
@@ -101,12 +107,17 @@ Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name is_gcc -Value
 # 调用者必须将 项目配置对象(如 BOOST_INFO)保存在 $project 变量中
 # $no_build 不创建 build 文件夹
 Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name begin_build -Value {
-    param([string[]]$sub_folders,[switch]$no_build)
+    param([string[]]$sub_folders,[switch]$no_build,[string]$project_root)
     args_not_null_empty_undefined project
     Write-Host "(开始编译)building $($project.prefix) $($project.version)" -ForegroundColor Yellow
-    [string[]]$paths=$SOURCE_ROOT,$project.folder
-    $paths+=$sub_folders
-    pushd ([io.path]::Combine($paths))
+    if($project_root){
+        exit_if_not_exist $project_root -type Container
+    }else{
+        [string[]]$paths=$SOURCE_ROOT,$project.folder
+        $paths+=$sub_folders
+        $project_root=([io.path]::Combine($paths))
+    }
+    pushd $project_root
     if(! $no_build){
         $build="build.$($this.compiler)"
         clean_folder $build
@@ -812,7 +823,7 @@ function build_caffe([PSObject]$project){
         echo $error_message
         exit -1
     }
-    $BUILD_INFO.begin_build()
+    $BUILD_INFO.begin_build($null,$false,$project.root)
     # 指定 OpenBLAS 安装路径 参见 $caffe_source/cmake/Modules/FindOpenBLAS.cmake
     $env:OpenBLAS_HOME=$OPENBLAS_INFO.install_path()
     # 指定 lmdb 安装路径 参见 $caffe_source/cmake/Modules/FindLMDB.cmake.cmake
@@ -886,6 +897,26 @@ function build_caffe([PSObject]$project){
     exit_on_error
     $BUILD_INFO.end_build()
 }
+function init_custom_custom_info(){
+    args_not_null_empty_undefined custom_caffe_folder
+    if(! $custom_skip_patch){
+        .\fetch.ps1 -modify_caffe $custom_caffe_folder
+    }
+    $cmakelists_root=Join-Path $custom_caffe_folder -ChildPath CMakeLists.txt
+    $content=Get-Content $cmakelists_root
+    $regex_find_project='^\s*project\s*\(\s*(\w+)\s+.*\)'
+    $project_line=($content -match $regex_find_project) 
+    if( $project_line ){
+        $null=$project_line[0] -match $regex_find_project
+        $CAFFE_CUSTOM_INFO.prefix=$Matches[1]
+    }
+    if($custom_install_prefix){
+        $CAFFE_CUSTOM_INFO.install_prefix=$custom_install_prefix
+    }else{
+        $CAFFE_CUSTOM_INFO.install_prefix=Join-Path $INSTALL_PREFIX_ROOT -ChildPath "$($CAFFE_CUSTOM_INFO.folder)"
+    }
+    $CAFFE_CUSTOM_INFO.root=$custom_caffe_folder
+}
 # 输出帮助信息
 function print_help(){
     if($(chcp ) -match '\.*936$'){
@@ -958,6 +989,7 @@ function sorted_project([string[]]$available_names){
 }
 # 所有项目列表字符串数组
 $all_project_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf caffe_windows".Trim() -split '\s+'
+$caffe_custom_name='caffe_custom'
 # 当前脚本名称
 $current_script_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 if($help){
@@ -973,7 +1005,11 @@ $BUILD_INFO
 
 # 没有指定 names 参数时编译所有项目
 if(! $names){
-    $names= $all_project_names
+    if($custom_caffe_folder){
+        $names=@()
+    }else{
+        $names= $all_project_names
+    }    
 }
 # 因为各个项目之间有前后依赖关系,所以这里对输入的名字顺序重新排列，确保正确的依赖关系
 $names=$names | sorted_project $all_project_names
@@ -982,6 +1018,13 @@ echo $names| foreach {
         echo "(不识别的项目名称)unknow project name:$_"
         print_help
         exit -1
+    }
+}
+if($custom_caffe_folder){
+    init_custom_custom_info    
+    if($name.count -and ($names[-1] -eq $all_project_names[-1])){
+        # 删除最后的 caffe_windows
+        $names=$names[0..($names.Count-2)]
     }
 }
 $fetch_names=@()
@@ -996,12 +1039,17 @@ if($revert){
         }
     }
 }
+
 if($fetch_names.Count){
     if($revert){
         &$PSScriptRoot/fetch.ps1 $fetch_names -force
     }else{
         &$PSScriptRoot/fetch.ps1 $fetch_names
     }    
+}
+if($custom_caffe_folder){
+    # 在最后加上定义的项目
+    $names+=$caffe_custom_name
 }
 # 顺序编译 $names 中指定的项目
 echo $names| foreach {
