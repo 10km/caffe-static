@@ -73,19 +73,19 @@ $BUILD_INFO=New-Object PSObject -Property @{
 # $BUILD_INFO 成员方法 
 # 生成调用 cmake 时的默认命令行参数
 Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name make_cmake_vars_define -Value {
-        param([string]$c_flags,[string]$cxx_flags,[string]$exe_linker_flags)
-        $vars=$this.cmake_vars_define
-        if($this.c_flags -or $c_flags){
-            $vars+=" -DCMAKE_C_FLAGS=""$($this.c_flags) $c_flags """
-        }
-        if($this.cxx_flags -or $cxx_flags){
-            $vars+=" -DCMAKE_CXX_FLAGS=""$($this.cxx_flags) $cxx_flags """
-        }
-        if($this.exe_linker_flags -or $exe_linker_flags){
-            $vars+=" -DCMAKE_EXE_LINKER_FLAGS=""$($this.exe_linker_flags) $exe_linker_flags """
-        }
-        $vars
+    param([string]$c_flags,[string]$cxx_flags,[string]$exe_linker_flags)
+    $vars=$this.cmake_vars_define
+    if($this.c_flags -or $c_flags){
+        $vars+=" -DCMAKE_C_FLAGS=""$($this.c_flags) $c_flags """
     }
+    if($this.cxx_flags -or $cxx_flags){
+        $vars+=" -DCMAKE_CXX_FLAGS=""$($this.cxx_flags) $cxx_flags """
+    }
+    if($this.exe_linker_flags -or $exe_linker_flags){
+        $vars+=" -DCMAKE_EXE_LINKER_FLAGS=""$($this.exe_linker_flags) $exe_linker_flags """
+    }
+    $vars
+}
 # $BUILD_INFO 成员方法 
 # 判断编译器是不是 msvc
 Add-Member -InputObject $BUILD_INFO -MemberType ScriptMethod -Name is_msvc -Value {
