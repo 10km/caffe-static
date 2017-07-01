@@ -4,12 +4,13 @@
 author: guyadong@gdface.net
 #>
 param(
-[string[]]$names,
+[alias('names')]
+[string[]]$build_project_names,
 [ValidateSet('auto','vs2015','vs2013','gcc')]
 [string]$compiler='auto',
 [ValidateSet('auto','x86','x86_64')]
 [string]$arch='auto',
-[alias('folder')]
+[alias('custom')]
 [string]$custom_caffe_folder,
 [alias('prefix')]
 [string]$custom_install_prefix,
@@ -922,8 +923,15 @@ function print_help(){
     if($(chcp ) -match '\.*936$'){
 	    echo "用法: $current_script_name [-names] [项目名称列表,...] [可选项...] 
 编译安装指定的项目,如果没有指定项目名称，则编译所有项目
-    -n,-names       项目名称列表(逗号分隔,忽略大小写,无空格)
+    -names,-build_project_names
+                    项目名称列表(逗号分隔,忽略大小写,无空格)
                     可选的项目名称: $($all_project_names -join ',') 
+    -custom,-custom_caffe_folder
+                    指定编译的caffe项目文件夹
+    -prefix,-custom_install_prefix
+                    caffe 项目安装路径,默认安装到 $INSTALL_PREFIX_ROOT
+    -skip,-custom_skip_patch
+                    跳过补丁更新,默认每次build前都会执行补丁更新,参见 fetch.ps1 中 modify_caffe_folder 函数
 选项:
     -c,-compiler    指定编译器类型,可选值: vs2013,vs2015,gcc,默认 auto(自动侦测)
                     指定为gcc时,如果没有检测到MinGW编译器,则使用本系统自带的MinGW编译器
@@ -943,11 +951,18 @@ function print_help(){
 "
     }else{
         echo "usage: $current_script_name [-names] [PROJECT_NAME,...] [options...] 
-build & install projects specified by project name,
+build & install projects specified by project names,
 all projects builded if no name argument
-    -n,-names       prject names(split by comma,ignore case,without blank)
+    -names,-build_project_names
+                    prject names(split by comma,ignore case,without blank)
                     optional project names: $($all_project_names -join ',')
-
+    -custom,-custom_caffe_folder
+                    caffe folder for building
+    -prefix,-custom_install_prefix
+                    default is $INSTALL_PREFIX_ROOT
+    -skip,-custom_skip_patch
+                    no patch for caffe                    
+                    see also the 'modify_caffe_folder' function in fetch.ps1 
 options:
     -c,-compiler    compiler type,valid value:'vs2013','vs2015','gcc',default 'auto' 
     -a,-arch        target processor architecture: 'x86','x86_64',default 'auto'
@@ -1004,16 +1019,16 @@ Write-Host 编译器配置: -ForegroundColor Yellow
 $BUILD_INFO
 
 # 没有指定 names 参数时编译所有项目
-if(! $names){
+if(! $build_project_names){
     if($custom_caffe_folder){
-        $names=@()
+        $build_project_names=@()
     }else{
-        $names= $all_project_names
+        $build_project_names= $all_project_names
     }    
 }
 # 因为各个项目之间有前后依赖关系,所以这里对输入的名字顺序重新排列，确保正确的依赖关系
-$names=$names | sorted_project $all_project_names
-echo $names| foreach {    
+$build_project_names=$build_project_names | sorted_project $all_project_names
+$build_project_names| foreach {    
     if( ! (Test-Path function:"build_$($_.ToLower())") -and !($_.StartsWith('caffe'))   ){
         echo "(不识别的项目名称)unknow project name:$_"
         print_help
@@ -1021,17 +1036,17 @@ echo $names| foreach {
     }
 }
 if($custom_caffe_folder){
-    init_custom_custom_info    
-    if($name.count -and ($names[-1] -eq $all_project_names[-1])){
+    init_custom_custom_info
+    if($build_project_names.count -and ($build_project_names[-1] -eq $all_project_names[-1])){
         # 删除最后的 caffe_windows
-        $names=$names[0..($names.Count-2)]
+        $build_project_names=$build_project_names[0..($build_project_names.Count-2)]
     }
 }
 $fetch_names=@()
 if($revert){
-    $fetch_names=$names
+    $fetch_names=$build_project_names
 }else{
-    echo $names| foreach {
+    $build_project_names| foreach {
         # 如果源码文件夹不存在,则需要fetch该项目   
         $info=Get-Variable "$($_.ToLower())_INFO" -ValueOnly
         if(  ! (Test-Path (Join-Path $SOURCE_ROOT -ChildPath $info.folder) -PathType Container)){
@@ -1049,10 +1064,10 @@ if($fetch_names.Count){
 }
 if($custom_caffe_folder){
     # 在最后加上定义的项目
-    $names+=$caffe_custom_name
+    $build_project_names+=$caffe_custom_name
 }
-# 顺序编译 $names 中指定的项目
-echo $names| foreach {
+# 顺序编译 $build_project_names 中指定的项目
+$build_project_names| foreach {
     if($_.StartsWith('caffe')){
         build_caffe(Get-Variable "$($_.ToLower())_INFO" -ValueOnly)
     }else{
