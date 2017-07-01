@@ -698,9 +698,12 @@ function build_leveldb(){
         # MSVC ¹Ø±Õ±àÒë¾¯¸æ
         $env:CXXFLAGS='/wd4312 /wd4244 /wd4018'
         $env:CFLAGS  ='/wd4312 /wd4244 /wd4018'
+    }else{
+        $cxxflags='-DWIN32'
+        $cflags  ='-DWIN32'
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path""
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define($cflags,$cxxflags)) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DBOOST_ROOT=`"$boost_root`"
 	    -DBoost_NO_SYSTEM_PATHS=on 
         -DBoost_USE_STATIC_RUNTIME=$boost_use_static_runtime
