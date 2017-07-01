@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
 
 project(leveldb CXX)
-# modified by guyadong    
+# modified by guyadong
 #set(CMAKE_DEBUG_POSTFIX "d")
 
 set(Boost_USE_STATIC_LIBS ON)
@@ -19,16 +19,17 @@ set(SNAPPY_LIBRARY "")
 
 string(REGEX MATCH "clang" CLANG ${CMAKE_CXX_COMPILER})
 # modified by guyadong
-find_package (Threads REQUIRED)
-if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
+if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)		
+		find_package (Threads REQUIRED)	
+		set(Pthread_LIBRARY Threads::Threads)
     #find_library(Pthread_LIBRARY pthread)
-    find_library(Realtime_LIBRARY rt)
+    #find_library(Realtime_LIBRARY rt)
     # find library can be problematic with stdc++ which is why we hardwire the link
-    set(Stdcpp_LIBRARY stdc++)
+    #set(Stdcpp_LIBRARY stdc++)
 else(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
     set(Pthread_LIBRARY "")
-    set(Realtime_LIBRARY "")
-    set(Stdcpp_LIBRARY "")
+    #set(Realtime_LIBRARY "")
+    #set(Stdcpp_LIBRARY "")
 endif(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
 
 include_directories(${Boost_INCLUDE_DIRS}
@@ -162,12 +163,8 @@ target_include_directories(leveldb
 target_link_libraries(leveldb 
     PRIVATE
     ${Boost_LIBRARIES}
-    # modified by guyadong
-    Threads::Threads
-    stdc++
-    #${Pthread_LIBRARY}
+    ${Pthread_LIBRARY}
 )
-
 add_executable(leveldbutil
     db/leveldb_main.cc)
 
@@ -234,9 +231,9 @@ function(LEVELDB_ADD_TEST TESTNAME TESTFILE)
     add_test(NAME leveldb_${TESTNAME}_test COMMAND leveldb_${TESTNAME}_test)
 
     add_dependencies(RUN_LEVELDB_UNIT_TESTS leveldb_${TESTNAME}_test)
-   	# modified by guyadong
+   	# <modified by guyadong
     install(TARGETS leveldb_${TESTNAME}_test  RUNTIME DESTINATION bin)
-    # end of modified by guyadong
+    # >end of modified by guyadong
 endfunction(LEVELDB_ADD_TEST)
 
 LEVELDB_ADD_TEST(env          util/env_test.cc)

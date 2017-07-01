@@ -697,13 +697,12 @@ function build_leveldb(){
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
         $env:CXXFLAGS='/wd4312 /wd4244 /wd4018'
-        $env:CFLAGS  ='/wd4312 /wd4244 /wd4018'
     }else{
-        $cxxflags='-DWIN32'
-        $cflags  ='-DWIN32'
+        # 奇葩, port/port.h 居然没有找到MinGW编译器预定义的宏,只能在这里手工补上定义
+        $cxxflags='-DWIN32 -D_WIN32'
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define($cflags,$cxxflags)) -DCMAKE_INSTALL_PREFIX=""$install_path""
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define('',$cxxflags)) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DBOOST_ROOT=`"$boost_root`"
 	    -DBoost_NO_SYSTEM_PATHS=on 
         -DBoost_USE_STATIC_RUNTIME=$boost_use_static_runtime
@@ -711,7 +710,6 @@ function build_leveldb(){
     cmd /c $cmd
     exit_on_error
     $env:CXXFLAGS=''
-    $env:CFLAGS  =''
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
