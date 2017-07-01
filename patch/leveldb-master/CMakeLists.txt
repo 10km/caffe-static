@@ -18,9 +18,10 @@ find_package(Boost COMPONENTS
 set(SNAPPY_LIBRARY "")
 
 string(REGEX MATCH "clang" CLANG ${CMAKE_CXX_COMPILER})
-
+# modified by guyadong
+find_package (Threads REQUIRED)
 if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
-    find_library(Pthread_LIBRARY pthread)
+    #find_library(Pthread_LIBRARY pthread)
     find_library(Realtime_LIBRARY rt)
     # find library can be problematic with stdc++ which is why we hardwire the link
     set(Stdcpp_LIBRARY stdc++)
@@ -161,7 +162,10 @@ target_include_directories(leveldb
 target_link_libraries(leveldb 
     PRIVATE
     ${Boost_LIBRARIES}
-    ${Pthread_LIBRARY}
+    # modified by guyadong
+    Threads::Threads
+    stdc++
+    #${Pthread_LIBRARY}
 )
 
 add_executable(leveldbutil
