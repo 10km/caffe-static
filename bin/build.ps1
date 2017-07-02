@@ -858,8 +858,8 @@ function build_caffe([PSObject]$project){
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
     # 宏定义 /DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES 用于解决 glog 连接报错
-    $env:CXXFLAGS="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
-    $env:CFLAGS  ="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
+    #$env:CXXFLAGS="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
+    #$env:CFLAGS  ="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define('','',$exe_link_opetion)) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DCOPY_PREREQUISITES=off
         -DINSTALL_PREREQUISITES=off
