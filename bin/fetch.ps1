@@ -305,14 +305,22 @@ function modify_caffe_folder([string]$caffe_root){
         exit_on_error
     }
     $dependencies_cmake= [io.path]::combine( $caffe_root,'cmake','Dependencies.cmake')
-    $content=Get-Content $dependencies_cmake
-    $regex_hdf5='(^\s*set\s*\(\s*HDF5_\w+\s+hdf5\w*-)shared(\)\s*$)'
-    if($content -match $regex_hdf5){
+    $content=(Get-Content $dependencies_cmake) -join "`n"
+    $regex_hdf5_block="(\n#\s*---\s*\[\s*HDF5.*\n)[\s\S]+(\nlist\s*\(\s*APPEND\s+Caffe_INCLUDE_DIRS\s+PUBLIC\s+\$\{HDF5_INCLUDE_DIRS\}\s*\))"
+    
+    if($content -match $regex_hdf5_block){
         Write-Host "(修正 hdf5 依赖库) use hdf5 static library ($dependencies_cmake)"
-        $content -replace $regex_hdf5,'#modified by guyadong,use static library
-$1static$2'| Out-File $dependencies_cmake -Encoding ascii -Force
+        $content -replace $regex_hdf5_block,'$1#modified by guyadong 
+# Find HDF5 always using static libraries
+find_package(HDF5 COMPONENTS C HL REQUIRED)
+set(HDF5_LIBRARIES hdf5-static)
+set(HDF5_HL_LIBRARIES hdf5_hl-static)$2'| Out-File $dependencies_cmake -Encoding ascii -Force
         exit_on_error 
-    }  
+    }else{
+        Write-Host "(没有找到 HDF5 相关代码)，found hdf5 flags in $dependencies_cmake" -ForegroundColor Yellow
+        call_stack
+        exit -1
+    }
 	echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $caffe_root"	
     cp -Path ([io.path]::Combine($PATCH_ROOT,'caffe_base','*')) -Destination $caffe_root -Recurse -Force -Verbose    
 	exit_on_error 
