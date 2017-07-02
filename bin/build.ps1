@@ -842,10 +842,11 @@ function build_caffe([PSObject]$project){
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
         $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
+        # 原本用 /SAFESEH:NO 选项解决debug版本编译时 openblas 库(MinGW编译)连接错误,
+        # 现在编译openblas时只有release模式就解决了连接错误问题,所以 这个选项不需要了
         #if($BUILD_INFO.build_type -eq 'debug'){
         #    $exe_link_opetion='/SAFESEH:NO'
-        #}
-        
+        #}        
     }else{
         $close_warning=''    
     }
@@ -857,10 +858,9 @@ function build_caffe([PSObject]$project){
         $protobuf_dir=[io.path]::Combine($PROTOBUF_INFO.install_path(),'lib','cmake','protobuf')
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
-    # 宏定义 /DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES 用于解决 glog 连接报错
-    #$env:CXXFLAGS="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
-    #$env:CFLAGS  ="/DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES $close_warning"
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define('','',$exe_link_opetion)) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    $env:CXXFLAGS="$close_warning"
+    $env:CFLAGS  ="$close_warning"
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DCOPY_PREREQUISITES=off
         -DINSTALL_PREREQUISITES=off
 	    -DGLOG_ROOT_DIR=`"$($GLOG_INFO.install_path())`"
@@ -888,14 +888,6 @@ function build_caffe([PSObject]$project){
     exit_on_error
     $env:CXXFLAGS=''
     $env:CFLAGS=''
-    # 修改所有 link.txt 删除-lstdc++ 选项，保证静态连接libstdc++库,否则在USE_OPENCV=on的情况下，libstdc++不会静态链接
-    <#if($BUILD_INFO.is_gcc()){
-        ls . -Filter link.txt -Recurse|foreach {    
-	        echo "modifing file: $_"
-	        sed -i -r "s/-lstdc\+\+/ /g" $_
-            (Get-Content $_) -replace '(^-lstdc\+\+','' | Out-File $_ -Encoding ascii -Force
-        }
-    }#>
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
