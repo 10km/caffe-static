@@ -325,7 +325,15 @@ set(HDF5_HL_LIBRARIES hdf5_hl-static)$2'| Out-File $dependencies_cmake -Encoding
     cp -Path ([io.path]::Combine($PATCH_ROOT,'caffe_base','*')) -Destination $caffe_root -Recurse -Force -Verbose    
 	exit_on_error 
 }
-# 基于 caffe 项目代码通用补丁函数, 
+# 基于 BVLC/caffe windows brance 项目(https://github.com/BVLC/caffe/tree/windows)代码补丁函数,主要为了mingw编译
+# $caffe_root caffe 源码根目录
+function modify_bvlc_caffe_windows([string]$caffe_root){
+    args_not_null_empty_undefined caffe_root
+	echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $caffe_root"	
+    cp -Path ([io.path]::Combine($PATCH_ROOT,'blvc_caffe_windows','*')) -Destination $caffe_root -Recurse -Force -Verbose    
+	exit_on_error 
+}
+# 基于 caffe 项目代码通用补丁函数,用于修复与源码的cmake脚本
 # 所有 caffe 系列项目fetch后 应先调用此函数做修补
 function modify_caffe_base([PSObject]$caffe_base_project){
     args_not_null_empty_undefined caffe_base_project
@@ -366,7 +374,10 @@ function fetch_lmdb(){ fetch_from_github $LMDB_INFO ; modify_lmdb }
 function fetch_snappy(){ fetch_from_github $SNAPPY_INFO; modify_snappy ; }
 function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; modify_openblas}
 function fetch_ssd(){ fetch_from_github $SSD_INFO ; modify_ssd; }
-function fetch_caffe_windows(){ fetch_from_github $CAFFE_WINDOWS_INFO ; modify_caffe_base $CAFFE_WINDOWS_INFO}
+function fetch_caffe_windows(){ 
+    fetch_from_github $CAFFE_WINDOWS_INFO ; 
+    modify_caffe_base $CAFFE_WINDOWS_INFO;
+    modify_bvlc_caffe_windows (Join-Path -Path $SOURCE_ROOT -ChildPath $CAFFE_WINDOWS_INFO.folder) }
 function fetch_opencv(){ fetch_from_github $OPENCV_INFO; }
 function fetch_bzip2(){ fetch_bzip2_1_0_5 ; modify_bzip2_1_0_5 }
 
