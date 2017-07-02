@@ -296,7 +296,14 @@ function modify_caffe_folder([string]$caffe_root){
         $content -replace $regex_disable_download,'#deleted by guyadong,disable download prebuilt dependencies
 #$1'| Out-File $cmakelists_root -Encoding ascii -Force
         exit_on_error
-    } 
+    }
+    $content=Get-Content $cmakelists_root
+    $regex_protobuf='(^\s*caffe_option\s*\(\s*protobuf_MODULE_COMPATIBLE\s+.*\s+)(?:ON|OFF)\s+IF\s+MSVC\s*\)'
+    if( $content -match $regex_protobuf){
+        Write-Host "set protobuf_MODULE_COMPATIBLE always ON"
+        $content -replace $regex_protobuf,'$1ON)#modify by guyadong,always set ON'| Out-File $cmakelists_root -Encoding ascii -Force
+        exit_on_error
+    }
     $dependencies_cmake= [io.path]::combine( $caffe_root,'cmake','Dependencies.cmake')
     $content=Get-Content $dependencies_cmake
     $regex_hdf5='(^\s*set\s*\(\s*HDF5_\w+\s+hdf5\w*-)shared(\)\s*$)'

@@ -835,12 +835,10 @@ function build_caffe([PSObject]$project){
     # GLOG_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGlog.cmake
     # GFLAGS_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGFlags.cmake
     # HDF5_ROOT 参见 https://cmake.org/cmake/help/v3.8/module/FindHDF5.html
-    # BOOST_ROOT,Boost_NO_SYSTEM_PATHS Boost_USE_STATIC_LIBS Boost_USE_STATIC_RUNTIME 参见 https://cmake.org/cmake/help/v3.8/module/FindBoost.html
+    # BOOST_ROOT,Boost_NO_SYSTEM_PATHS Boost_USE_STATIC_LIBS Boost_USE_STATIC_RUNTIME Boost_USE_STATIC_RUNTIME 参见 https://cmake.org/cmake/help/v3.8/module/FindBoost.html
     # SNAPPY_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindSnappy.cmake
     # COPY_PREREQUISITES=off 关闭 windows 版预编译库下载 参见 $caffe_source/CMakeLists.txt
-    # PROTOBUF_LIBRARY,PROTOBUF_PROTOC_LIBRARY... 参见 https://cmake.org/cmake/help/v3.8/module/FindProtobuf.html
     # OpenCV_DIR 参见https://cmake.org/cmake/help/v3.8/command/find_package.html
-    $lib_suffix=$(if($BUILD_INFO.is_msvc()){'.lib'}else{'.a'})
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
         $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
@@ -848,6 +846,15 @@ function build_caffe([PSObject]$project){
         #    $exe_link_opetion='/SAFESEH:NO'
         #}
         
+    }else{
+        $close_warning=''    
+    }
+    # msvc和mingw编译出来的protobuf版本install文件结构不完全相同
+    # $protobuf_dir 定义 protobuf-config.cmake所在文件夹 
+    if($BUILD_INFO.is_msvc()){
+        $protobuf_dir=Join-Path $PROTOBUF_INFO.install_path() -ChildPath cmake
+    }else{
+        $protobuf_dir=[io.path]::Combine($PROTOBUF_INFO.install_path(),'lib','cmake','protobuf')
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
     # 宏定义 /DGOOGLE_GLOG_DLL_DECL= /DGLOG_NO_ABBREVIATED_SEVERITIES 用于解决 glog 连接报错
@@ -866,13 +873,8 @@ function build_caffe([PSObject]$project){
         -DBoost_USE_STATIC_RUNTIME=$boost_use_static_runtime
 	    -DSNAPPY_ROOT_DIR=`"$($SNAPPY_INFO.install_path())`"
 	    -DOpenCV_DIR=`"$opencv_cmake_dir`" 
-        -DProtobuf_DIR=`"$(Join-Path $PROTOBUF_INFO.install_path() -ChildPath cmake)`"
-#	    -DPROTOBUF_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf$lib_suffix" )`"
-#	    -DPROTOBUF_PROTOC_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotoc$lib_suffix")`"
-#	    -DPROTOBUF_LITE_LIBRARY=`"$(Join-Path $protobuf_lib -ChildPath "libprotobuf-lite$lib_suffix")`"
-#	    -DPROTOBUF_PROTOC_EXECUTABLE=`"$([io.path]::Combine($($PROTOBUF_INFO.install_path()),'bin','protoc.exe'))`"
-# PROTOBUF_INCLUDE_DIR 提供的路径分隔符必须是/,否则会引起 cmake 报错
-#	    -DPROTOBUF_INCLUDE_DIR=`"$($PROTOBUF_INFO.install_path().replace('\','/'))/include`"
+        -Dprotobuf_MODULE_COMPATIBLE=on
+        -DProtobuf_DIR=`"$protobuf_dir`"
 	    -DCPU_ONLY=ON 
 	    -DBLAS=Open 
 	    -DBUILD_SHARED_LIBS=off 
@@ -887,13 +889,13 @@ function build_caffe([PSObject]$project){
     $env:CXXFLAGS=''
     $env:CFLAGS=''
     # 修改所有 link.txt 删除-lstdc++ 选项，保证静态连接libstdc++库,否则在USE_OPENCV=on的情况下，libstdc++不会静态链接
-    if($BUILD_INFO.is_gcc()){
+    <#if($BUILD_INFO.is_gcc()){
         ls . -Filter link.txt -Recurse|foreach {    
 	        echo "modifing file: $_"
 	        sed -i -r "s/-lstdc\+\+/ /g" $_
             (Get-Content $_) -replace '(^-lstdc\+\+','' | Out-File $_ -Encoding ascii -Force
         }
-    }
+    }#>
     remove_if_exist "$install_path"
     cmd /c "$($BUILD_INFO.make_exe) $($BUILD_INFO.make_exe_option) $($BUILD_INFO.make_install_target) 2>&1"
     exit_on_error
