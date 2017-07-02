@@ -12,39 +12,46 @@
 include(FindPackageHandleStandardArgs)
 # modified by guyadong
 set(GLOG_ROOT_DIR "" CACHE PATH "Folder contains Google glog")
-find_path(GLOG_INCLUDE_DIR glog/logging.h
-    PATHS ${GLOG_ROOT_DIR}/include
-		NO_DEFAULT_PATH)
-find_path(GLOG_INCLUDE_DIR glog/logging.h
-    PATHS ${GLOG_ROOT_DIR}/include)
-
-if(MSVC)
-    find_library(GLOG_LIBRARY_RELEASE glog glog_static
-        PATHS ${GLOG_ROOT_DIR}
-        PATH_SUFFIXES lib NO_DEFAULT_PATH)
-
-    find_library(GLOG_LIBRARY_DEBUG glog glog_static
-        PATHS ${GLOG_ROOT_DIR}
-        PATH_SUFFIXES lib NO_DEFAULT_PATH)
-
-    find_library(GLOG_LIBRARY_RELEASE glog glog_static
-        PATHS ${GLOG_ROOT_DIR}
-        PATH_SUFFIXES lib)
-
-    find_library(GLOG_LIBRARY_DEBUG glog glog_static
-        PATHS ${GLOG_ROOT_DIR}/lib
-        PATH_SUFFIXES lib)
-
-    set(GLOG_LIBRARY optimized ${GLOG_LIBRARY_RELEASE} debug ${GLOG_LIBRARY_DEBUG})
-else()
-    find_library(GLOG_LIBRARY glog
-        PATHS ${GLOG_ROOT_DIR}
-        PATH_SUFFIXES lib lib64
-				NO_DEFAULT_PATH)
-    find_library(GLOG_LIBRARY glog
-        PATHS ${GLOG_ROOT_DIR}
-        PATH_SUFFIXES lib lib64)
-endif()
+if(GLOG_ROOT_DIR)
+	find_package(glog REQUIRED CONFIG HINTS ${GLOG_ROOT_DIR})
+	set(GLOG_INCLUDE_DIR ${GLOG_ROOT_DIR}/include)
+	# glog::glog is imported target
+	set(GLOG_LIBRARY glog::glog)
+else(GLOG_ROOT_DIR)	
+	find_path(GLOG_INCLUDE_DIR glog/logging.h
+	    PATHS ${GLOG_ROOT_DIR}/include
+			NO_DEFAULT_PATH)
+	find_path(GLOG_INCLUDE_DIR glog/logging.h
+	    PATHS ${GLOG_ROOT_DIR}/include)
+	
+	if(MSVC)
+	    find_library(GLOG_LIBRARY_RELEASE glog glog_static
+	        PATHS ${GLOG_ROOT_DIR}
+	        PATH_SUFFIXES lib NO_DEFAULT_PATH)
+	
+	    find_library(GLOG_LIBRARY_DEBUG glog glog_static
+	        PATHS ${GLOG_ROOT_DIR}
+	        PATH_SUFFIXES lib NO_DEFAULT_PATH)
+	
+	    find_library(GLOG_LIBRARY_RELEASE glog glog_static
+	        PATHS ${GLOG_ROOT_DIR}
+	        PATH_SUFFIXES lib)
+	
+	    find_library(GLOG_LIBRARY_DEBUG glog glog_static
+	        PATHS ${GLOG_ROOT_DIR}/lib
+	        PATH_SUFFIXES lib)
+	
+	    set(GLOG_LIBRARY optimized ${GLOG_LIBRARY_RELEASE} debug ${GLOG_LIBRARY_DEBUG})
+	else()
+	    find_library(GLOG_LIBRARY glog
+	        PATHS ${GLOG_ROOT_DIR}
+	        PATH_SUFFIXES lib lib64
+					NO_DEFAULT_PATH)
+	    find_library(GLOG_LIBRARY glog
+	        PATHS ${GLOG_ROOT_DIR}
+	        PATH_SUFFIXES lib lib64)
+	endif()
+endif(GLOG_ROOT_DIR)
 
 find_package_handle_standard_args(Glog DEFAULT_MSG GLOG_INCLUDE_DIR GLOG_LIBRARY)
 
