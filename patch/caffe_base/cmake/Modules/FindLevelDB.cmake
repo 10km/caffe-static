@@ -4,6 +4,7 @@
 #  LevelDB_LIBRARIES - List of libraries when using LevelDB.
 #  LevelDB_FOUND     - True if LevelDB found.
 # modified by guyadong
+
 # Look for the header file.
 find_path(LevelDB_INCLUDE NAMES leveldb/db.h
                           PATHS $ENV{LEVELDB_ROOT}/include 
@@ -22,8 +23,14 @@ find_package_handle_standard_args(LevelDB DEFAULT_MSG LevelDB_INCLUDE LevelDB_LI
 
 if(LEVELDB_FOUND)
   message(STATUS "Found LevelDB (include: ${LevelDB_INCLUDE}, library: ${LevelDB_LIBRARY})")
+  # modified by guyadong,add boost libraries to LevelDB_LIBRARIES
+  find_package(Boost COMPONENTS 
+    date_time
+    filesystem
+    system
+    REQUIRED)
   set(LevelDB_INCLUDES ${LevelDB_INCLUDE})
-  set(LevelDB_LIBRARIES ${LevelDB_LIBRARY})
+  set(LevelDB_LIBRARIES ${LevelDB_LIBRARY} ${Boost_LIBRARIES})
   mark_as_advanced(LevelDB_INCLUDE LevelDB_LIBRARY)
 
   if(EXISTS "${LevelDB_INCLUDE}/leveldb/db.h")
