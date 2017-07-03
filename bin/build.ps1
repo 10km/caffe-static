@@ -718,6 +718,8 @@ function build_leveldb(){
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define('',$cxxflags)) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DBOOST_ROOT=`"$boost_root`"
+        -DBOOST_INCLUDEDIR=`"$(Join-Path $boost_root -ChildPath include)`"
+        -DBOOST_LIBRARYDIR=`"$(Join-Path $boost_root -ChildPath lib)`"
 	    -DBoost_NO_SYSTEM_PATHS=on 
         -DBoost_USE_STATIC_RUNTIME=$boost_use_static_runtime
         -DBUILD_SHARED_LIBS=off 2>&1" 
@@ -882,6 +884,8 @@ function build_caffe_windows([PSObject]$project){
 	    -DHDF5_ROOT=`"$($HDF5_INFO.install_path())`"
         -DHDF5_USE_STATIC_LIBRARIES=on
 	    -DBOOST_ROOT=`"$($BOOST_INFO.install_path())`" 
+        -DBOOST_INCLUDEDIR=`"$(Join-Path $($BOOST_INFO.install_path()) -ChildPath include)`"
+        -DBOOST_LIBRARYDIR=`"$(Join-Path $($BOOST_INFO.install_path()) -ChildPath lib)`"
 	    -DBoost_NO_SYSTEM_PATHS=on 
         -DBoost_USE_STATIC_LIBS=on
         -DBoost_USE_STATIC_RUNTIME=$boost_use_static_runtime
