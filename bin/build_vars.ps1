@@ -210,6 +210,12 @@ $CAFFE_WINDOWS_INFO= create_project_info @{
     version="windows"
     owner="BVLC"	
 }
+#https://github.com/conner99/caffe.git
+$CONNER99_CAFFE_SSD_WIN32_INFO= create_project_info @{
+	prefix="caffe"
+    version="ssd-microsoft"
+    owner="conner99"	
+}
 # 自定义 caffe 项目配置对象 
 $CAFFE_CUSTOM_INFO= create_project_info @{
 	prefix='caffe'

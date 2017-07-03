@@ -307,7 +307,10 @@ function modify_caffe_folder([string]$caffe_root){
     $dependencies_cmake= [io.path]::combine( $caffe_root,'cmake','Dependencies.cmake')
     $content=(Get-Content $dependencies_cmake) -join "`n"
     $regex_hdf5_block="(\n#\s*---\s*\[\s*HDF5.*\n)[\s\S]+(\nlist\s*\(\s*APPEND\s+Caffe_INCLUDE_DIRS\s+PUBLIC\s+\$\{HDF5_INCLUDE_DIRS\}\s*\))"
-    
+    $regex_hdf5_start="(\n#\s*---\s*\[\s*HDF5.*\n)"
+    $regex_hdf5_body="([\s\S]+)"
+    $regex_hdf5_end_1="\n\s*list\s*\(\s*APPEND\s+Caffe_INCLUDE_DIRS\s+PUBLIC\s+\$\{HDF5_INCLUDE_DIRS\}\s*\)"
+    $regex_hdf5_end_2="\n\s*include_directories\s*\(.+\)"
     if($content -match $regex_hdf5_block){
         Write-Host "(ÐÞÕý hdf5 ÒÀÀµ¿â) use hdf5 static library ($dependencies_cmake)"
         $content -replace $regex_hdf5_block,'$1#modified by guyadong 
