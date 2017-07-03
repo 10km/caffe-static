@@ -361,7 +361,7 @@ function init_build_info(){
         test_gcc_compiler_capacity -gcc_compiler $BUILD_INFO.gcc_c_compiler -arch $BUILD_INFO.arch
         ignore_arguments_by_compiler msvc_shared_runtime msvc_project
     }elseif($BUILD_INFO.is_msvc()){
-        ignore_arguments_by_compiler gcc_project gcc
+        ignore_arguments_by_compiler gcc_project gcc_location,gcc
     }    
     make_msvc_env
     $BUILD_INFO.save_env_snapshoot()
@@ -808,8 +808,8 @@ function check_component([string]$folder,[PSObject]$info,[ref][string[]]$error_m
     args_not_null_empty_undefined folder info error_msg
     $null=(! (exist_file $folder)) -and ( $error_msg.Value+="(缺少 $($info.prefix) ),not found $folder,please build it by running ./build.ps1 $($info.prefix)")
 }
-# cmake静态编译 caffe 系列源码
-function build_caffe([PSObject]$project){
+# cmake静态编译 caffe 系列源码(windows下编译)
+function build_caffe_windows([PSObject]$project){
     args_not_null_empty_undefined project
     if($project.prefix -ne 'caffe'){
         throw "not project caffe based $project"
@@ -907,6 +907,8 @@ function build_caffe([PSObject]$project){
     exit_on_error
     $BUILD_INFO.end_build()
 }
+# 初始化自定义 caffe 项目信息
+# 将自定义caffe信息写入 $CAFFE_CUSTOM_INFO
 function init_custom_custom_info(){
     args_not_null_empty_undefined custom_caffe_folder
     if(! $custom_skip_patch){
@@ -1017,9 +1019,10 @@ function sorted_project([string[]]$available_names){
     }
     $sorted_names
 }
+$caffe_name='caffe_windows'
 # 所有项目列表字符串数组
-$all_project_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf caffe_windows".Trim() -split '\s+'
-$caffe_custom_name='caffe_custom'
+$all_project_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf $caffe_name".Trim() -split '\s+'
+
 # 当前脚本名称
 $current_script_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 if($help){
@@ -1036,7 +1039,7 @@ $BUILD_INFO
 # 没有指定 names 参数时编译所有项目
 if(! $build_project_names){
     if($custom_caffe_folder){
-        $build_project_names=@()
+        $build_project_names=@($caffe_name)
     }else{
         $build_project_names= $all_project_names
     }    
@@ -1044,28 +1047,24 @@ if(! $build_project_names){
 # 因为各个项目之间有前后依赖关系,所以这里对输入的名字顺序重新排列，确保正确的依赖关系
 $build_project_names=$build_project_names | sorted_project $all_project_names
 $build_project_names| foreach {    
-    if( ! (Test-Path function:"build_$($_.ToLower())") -and !($_.StartsWith('caffe'))   ){
+    if( ! (Test-Path function:"build_$($_.ToLower())")){
         echo "(不识别的项目名称)unknow project name:$_"
         print_help
         exit -1
     }
 }
-if($custom_caffe_folder){
-    init_custom_custom_info
-    if($build_project_names.count -and ($build_project_names[-1] -eq $all_project_names[-1])){
-        # 删除最后的 caffe_windows
-        $build_project_names=$build_project_names[0..($build_project_names.Count-2)]
-    }
-}
+
 $fetch_names=@()
 if($revert){
     $fetch_names=$build_project_names
 }else{
     $build_project_names| foreach {
-        # 如果源码文件夹不存在,则需要fetch该项目   
-        $info=Get-Variable "$($_.ToLower())_INFO" -ValueOnly
-        if(  ! (Test-Path (Join-Path $SOURCE_ROOT -ChildPath $info.folder) -PathType Container)){
-            $fetch_names+=$_
+        if($_ -ne $caffe_name -or !$custom_caffe_folder){
+            # 如果源码文件夹不存在,则需要fetch该项目   
+            $info=Get-Variable "$($_.ToLower())_INFO" -ValueOnly
+            if(  ! (Test-Path (Join-Path $SOURCE_ROOT -ChildPath $info.folder) -PathType Container)){
+                $fetch_names+=$_
+            }
         }
     }
 }
@@ -1077,14 +1076,16 @@ if($fetch_names.Count){
         &$PSScriptRoot/fetch.ps1 $fetch_names
     }    
 }
-if($custom_caffe_folder){
-    # 在最后加上定义的项目
-    $build_project_names+=$caffe_custom_name
-}
+
 # 顺序编译 $build_project_names 中指定的项目
 $build_project_names| foreach {
-    if($_.StartsWith('caffe')){
-        build_caffe(Get-Variable "$($_.ToLower())_INFO" -ValueOnly)
+    if($_ -eq $caffe_name){
+        $info_prefix=$_
+        if($custom_caffe_folder){
+            init_custom_custom_info
+            $info_prefix='CAFFE_CUSTOM'
+        }
+        build_caffe_windows(Get-Variable "$($info_prefix.ToLower())_INFO" -ValueOnly)
     }else{
         &build_$($_.ToLower())      
     }     
