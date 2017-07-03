@@ -485,6 +485,9 @@ function build_boost(){
 
     # user-config.jam 位于boost 根目录下
     $jam=Join-Path $(pwd) -ChildPath user-config.jam
+    $cxxflags=''
+    $cflags=''
+    # 根据$BUILD_INFO指定的编译器类型设置 toolset
     if($BUILD_INFO.is_gcc()){
         # 使用 gcc 编译器时用 user-config.jam 指定编译器路径
         # Out-File 默认生成的文件有bom头，所以生成 user-config.jam 时要指定 ASCII 编码(无bom)，否则会编译时读取文件报错：syntax error at EOF
@@ -497,27 +500,24 @@ function build_boost(){
         remove_if_exist "$jam"
         if($BUILD_INFO.compiler -eq 'vs2013'){
             $toolset='toolset=msvc-12.0'
+            # 解决 .\boost/type_traits/common_types.h(42) : fatal error C1001: 编译发生内部错误
+            # vs2013 update 5 无此问题
+            $cxxflags='cxxflags=-DBOOST_NO_CXX11_VARIADIC_TEMPLATES'
         }elseif($BUILD_INFO.compiler -eq 'vs2015'){
             $toolset='toolset=msvc-14.0'
         }
     }
+    # address-model=64 指定生成64位版本
     if($BUILD_INFO.arch -eq 'x86_64'){
         $address_model='address-model=64'
     }
-    
+    # runtime-link 指定生成 静态库或动态库
     if($BUILD_INFO.msvc_shared_runtime){
         $runtime_link="runtime-link=shared"
     }else{
         $runtime_link='runtime-link=static'
     }
     
-    # 所有库列表
-    # atomic chrono container context coroutine date_time exception filesystem 
-    # graph graph_parallel iostreams locale log math mpi program_options python 
-    # random regex serialization signals system test thread timer wave
-    # --without-libraries指定不编译的库
-    #./bootstrap.sh --without-libraries=python,mpi,graph,graph_parallel,wave
-    # --with-libraries指定编译的库
     Write-Host "runing bootstrap..." -ForegroundColor Yellow
     cmd /c "bootstrap"
     exit_on_error
@@ -525,14 +525,19 @@ function build_boost(){
     cmd /c "bjam --clean 2>&1"
     exit_on_error
     remove_if_exist "$install_path"    
-
+    # 所有库列表
+    # atomic chrono container context coroutine date_time exception filesystem 
+    # graph graph_parallel iostreams locale log math mpi program_options python 
+    # random regex serialization signals system test thread timer wave
+    # --without-<library>指定不编译的库
+    # --with-<library> 编译安装指定的库<library>
     # --prefix 指定安装位置
     # --debug-configuration 编译时显示加载的配置信息
     # -q 参数指示出错就停止编译
     # link=static 只编译静态库
-    # --with-<library> 编译安装指定的库<library>
     # -a 全部重新编译
     # -jx 并发编译线程数
+    # -d+3 log信息显示级别
     Write-Host "boost compiling..." -ForegroundColor Yellow
     args_not_null_empty_undefined MAKE_JOBS
     $cmd=combine_multi_line "bjam --prefix=$install_path -a -q -d+3 -j$MAKE_JOBS --debug-configuration   
@@ -542,7 +547,7 @@ function build_boost(){
         --with-filesystem
         --with-regex 
         link=static 
-        variant=$($BUILD_INFO.build_type) $runtime_link $toolset $address_model 
+        variant=$($BUILD_INFO.build_type) $runtime_link $toolset $address_model $cxxflags $cflags
         install 2>&1"
     cmd /c $cmd 
     exit_on_error
@@ -716,6 +721,7 @@ function build_leveldb(){
         $cxxflags='-DWIN32 -D_WIN32'
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
+    # BOOST_ROOT BOOST_INCLUDEDIR BOOST_LIBRARYDIR Boost_NO_SYSTEM_PATHS Boost_USE_STATIC_RUNTIME 参见 https://cmake.org/cmake/help/v3.8/module/FindBoost.html
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define('',$cxxflags)) -DCMAKE_INSTALL_PREFIX=""$install_path""
         -DBOOST_ROOT=`"$boost_root`"
         -DBOOST_INCLUDEDIR=`"$(Join-Path $boost_root -ChildPath include)`"
@@ -851,7 +857,7 @@ function build_caffe_windows([PSObject]$project){
     # GLOG_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGlog.cmake
     # GFLAGS_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindGFlags.cmake
     # HDF5_ROOT 参见 https://cmake.org/cmake/help/v3.8/module/FindHDF5.html
-    # BOOST_ROOT,Boost_NO_SYSTEM_PATHS Boost_USE_STATIC_LIBS Boost_USE_STATIC_RUNTIME Boost_USE_STATIC_RUNTIME 参见 https://cmake.org/cmake/help/v3.8/module/FindBoost.html
+    # BOOST_ROOT BOOST_INCLUDEDIR BOOST_LIBRARYDIR Boost_NO_SYSTEM_PATHS Boost_USE_STATIC_LIBS Boost_USE_STATIC_RUNTIME 参见 https://cmake.org/cmake/help/v3.8/module/FindBoost.html
     # SNAPPY_ROOT_DIR 参见 $caffe_source/cmake/Modules/FindSnappy.cmake
     # COPY_PREREQUISITES=off 关闭 windows 版预编译库下载 参见 $caffe_source/CMakeLists.txt
     # OpenCV_DIR 参见https://cmake.org/cmake/help/v3.8/command/find_package.html
@@ -860,12 +866,15 @@ function build_caffe_windows([PSObject]$project){
         $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
         # 原本用 /SAFESEH:NO 选项解决debug版本编译时 openblas 库(MinGW编译)连接错误,
         # 现在编译openblas时只有release模式就解决了连接错误问题,所以 这个选项不需要了
-        #if($BUILD_INFO.build_type -eq 'debug'){
-        #    $exe_link_opetion='/SAFESEH:NO'
-        #}        
+        if($BUILD_INFO.compiler -eq 'vs2013' -and $BUILD_INFO.arch -eq 'x86'){
+            $exe_link_opetion='/SAFESEH:NO'
+        }        
     }else{
         $close_warning=''    
     }
+        
+    $boost_no_cxx11_variadic_templates=$(if($BUILD_INFO.compiler -eq 'vs2013'){'-DBOOST_NO_CXX11_VARIADIC_TEMPLATES'}else{''})
+    
     # msvc和mingw编译出来的protobuf版本install文件结构不完全相同
     # $protobuf_dir 定义 protobuf-config.cmake所在文件夹 
     if($BUILD_INFO.is_msvc()){
@@ -874,7 +883,7 @@ function build_caffe_windows([PSObject]$project){
         $protobuf_dir=[io.path]::Combine($PROTOBUF_INFO.install_path(),'lib','cmake','protobuf')
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
-    $env:CXXFLAGS="$close_warning"
+    $env:CXXFLAGS="$close_warning $boost_no_cxx11_variadic_templates"
     $env:CFLAGS  ="$close_warning"
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DCOPY_PREREQUISITES=off
@@ -917,6 +926,7 @@ function init_custom_custom_info(){
     args_not_null_empty_undefined custom_caffe_folder
     if(! $custom_skip_patch){
         .\fetch.ps1 -modify_caffe $custom_caffe_folder
+        exit_on_error
     }
     $cmakelists_root=Join-Path $custom_caffe_folder -ChildPath CMakeLists.txt
     $content=Get-Content $cmakelists_root
