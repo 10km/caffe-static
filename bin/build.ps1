@@ -256,6 +256,9 @@ function detect_compiler(){
         }
         '^gcc$'{ 
             $gcc_exe='gcc.exe'
+            $gxx_exe='g++.exe'
+            #$gcc_exe='i686-w64-mingw32-gcc.exe'
+            #$gxx_exe='i686-w64-mingw32-g++.exe'
             if($BUILD_INFO.gcc_location){
                 $gcc_exe=Join-Path $BUILD_INFO.gcc_location -ChildPath $gcc_exe
             }else{
@@ -270,11 +273,12 @@ function detect_compiler(){
                 }
             }  
             if(Test-Path $gcc_exe -PathType Leaf){
+                $gcc_exe=(Get-Item $gcc_exe).FullName
                 $BUILD_INFO.gcc_version=cmd /c "$gcc_exe -dumpversion 2>&1" 
                 exit_on_error 
                 $BUILD_INFO.gcc_location= (Get-Item $gcc_exe).Directory
                 $BUILD_INFO.gcc_c_compiler=$gcc_exe
-                $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath 'g++.exe'
+                $BUILD_INFO.gcc_cxx_compiler=Join-Path $BUILD_INFO.gcc_location -ChildPath $gxx_exe
                 switch($BUILD_INFO.gcc_project){
                 'make'{
                     $generator='MinGW Makefiles'
@@ -342,7 +346,7 @@ function init_build_info(){
         args_not_null_empty_undefined HOST_PROCESSOR
         $BUILD_INFO.arch=$HOST_PROCESSOR
     }
-    if($BUILD_INFO.gcc_location ){        
+    if($BUILD_INFO.gcc_location -and $BUILD_INFO.compiler -ne 'gcc'){        
         $BUILD_INFO.compiler='gcc'
         Write-Host "(÷ÿ÷√≤Œ ˝)force set option '-compiler' to 'gcc' while use '-gcc' option" -ForegroundColor Yellow
     }
