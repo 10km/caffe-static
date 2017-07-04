@@ -514,6 +514,8 @@ function build_boost(){
     # address-model=64 指定生成64位版本
     if($BUILD_INFO.arch -eq 'x86_64'){
         $address_model='address-model=64'
+    }else{
+        $address_model='address-model=32'
     }
     # runtime-link 指定生成 静态库或动态库
     if($BUILD_INFO.msvc_shared_runtime){
