@@ -870,11 +870,12 @@ function build_caffe_windows([PSObject]$project){
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
         $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305 /wd4819'
-        # 原本用 /SAFESEH:NO 选项解决debug版本编译时 openblas 库(MinGW编译)连接错误,
-        # 现在编译openblas时只有release模式就解决了连接错误问题,所以这个选项不需要了
+        # /SAFESEH:NO 选项解决vs2013下32位版本编译时 openblas 库(MinGW编译)连接错误,
         if($BUILD_INFO.compiler -eq 'vs2013' -and $BUILD_INFO.arch -eq 'x86'){
             $exe_link_opetion='/SAFESEH:NO'
-        }        
+        }else{
+            $exe_link_opetion=''
+        }
     }else{
         $close_warning=''    
     }
@@ -889,7 +890,7 @@ function build_caffe_windows([PSObject]$project){
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
     $env:CXXFLAGS="$close_warning"
     $env:CFLAGS  ="$close_warning"
-    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+    $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define('','',$exe_link_opetion)) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DCOPY_PREREQUISITES=off
         -DINSTALL_PREREQUISITES=off
 	    -DGLOG_ROOT_DIR=`"$($GLOG_INFO.install_path())`"
