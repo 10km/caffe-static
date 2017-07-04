@@ -863,9 +863,9 @@ function build_caffe_windows([PSObject]$project){
     # OpenCV_DIR 参见https://cmake.org/cmake/help/v3.8/command/find_package.html
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
-        $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305'
+        $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305 /wd4819'
         # 原本用 /SAFESEH:NO 选项解决debug版本编译时 openblas 库(MinGW编译)连接错误,
-        # 现在编译openblas时只有release模式就解决了连接错误问题,所以 这个选项不需要了
+        # 现在编译openblas时只有release模式就解决了连接错误问题,所以这个选项不需要了
         if($BUILD_INFO.compiler -eq 'vs2013' -and $BUILD_INFO.arch -eq 'x86'){
             $exe_link_opetion='/SAFESEH:NO'
         }        
@@ -873,8 +873,6 @@ function build_caffe_windows([PSObject]$project){
         $close_warning=''    
     }
         
-    $boost_no_cxx11_variadic_templates=$(if($BUILD_INFO.compiler -eq 'vs2013'){'-DBOOST_NO_CXX11_VARIADIC_TEMPLATES'}else{''})
-    
     # msvc和mingw编译出来的protobuf版本install文件结构不完全相同
     # $protobuf_dir 定义 protobuf-config.cmake所在文件夹 
     if($BUILD_INFO.is_msvc()){
@@ -883,7 +881,7 @@ function build_caffe_windows([PSObject]$project){
         $protobuf_dir=[io.path]::Combine($PROTOBUF_INFO.install_path(),'lib','cmake','protobuf')
     }
     $boost_use_static_runtime=$(if( $BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})
-    $env:CXXFLAGS="$close_warning $boost_no_cxx11_variadic_templates"
+    $env:CXXFLAGS="$close_warning"
     $env:CFLAGS  ="$close_warning"
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
         -DCOPY_PREREQUISITES=off
@@ -939,7 +937,7 @@ function init_custom_custom_info(){
     if($custom_install_prefix){
         $CAFFE_CUSTOM_INFO.install_prefix=$custom_install_prefix
     }else{
-        $CAFFE_CUSTOM_INFO.install_prefix=Join-Path $INSTALL_PREFIX_ROOT -ChildPath "$($CAFFE_CUSTOM_INFO.folder)"
+        $CAFFE_CUSTOM_INFO.install_prefix=Join-Path $INSTALL_PREFIX_ROOT -ChildPath $(install_suffix "$($CAFFE_CUSTOM_INFO.folder.replace('-','_'))")
     }
     $CAFFE_CUSTOM_INFO.root=$custom_caffe_folder
 }

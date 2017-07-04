@@ -115,6 +115,7 @@ $leveldb_zeux_hash= @{
 	version="master"
 	owner="zeux"
 }
+# https://github.com/bureau14/leveldb
 $leveldb_bureau14_hash= @{
 	prefix="leveldb"
 	version="master"
