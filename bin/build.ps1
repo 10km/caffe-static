@@ -871,7 +871,7 @@ function build_caffe_windows([PSObject]$project){
         # MSVC 关闭编译警告
         $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305 /wd4819'
         # /SAFESEH:NO 选项解决vs2013下32位版本编译时 openblas 库(MinGW编译)连接错误,
-        if($BUILD_INFO.compiler -eq 'vs2013' -and $BUILD_INFO.arch -eq 'x86'){
+        if($BUILD_INFO.arch -eq 'x86'){
             $exe_link_opetion='/SAFESEH:NO'
         }else{
             $exe_link_opetion=''
