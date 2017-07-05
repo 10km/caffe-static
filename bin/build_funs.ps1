@@ -2,6 +2,7 @@
 #$DebugPreference = 'continue'
 $DebugPreference = 'SilentlyContinue'
 #set-executionpolicy remotesigned 
+$BUILD_FUNS_INCLUDED=$true
 # 输出函数调用堆栈
 # $index 从堆栈数组的第几个元素开始输出，默认为1,即不输出当前函数(call_stack)
 function call_stack([int]$index=1){

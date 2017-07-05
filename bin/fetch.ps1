@@ -328,129 +328,7 @@ set(HDF5_HL_LIBRARIES hdf5_hl-static)$2'| Out-File $dependencies_cmake -Encoding
     cp -Path ([io.path]::Combine($PATCH_ROOT,'caffe_base','*')) -Destination $caffe_root -Recurse -Force -Verbose    
 	exit_on_error 
 }
-# 在文本文件中用正则表达式搜索替换字符串并将修改后的内容回写到文件中
-function regex_replace_file($text_file,$regex,$replace,$msg,[switch]$join){
-    args_not_null_empty_undefined text_file regex 
-    exit_if_not_exist $text_file -type Leaf 
-    $content=Get-Content $text_file
-    if( $join ){
-        $content=$content -join '`n'
-    }
-    if( $content -match $regex){
-        Write-Host $msg -ForegroundColor Yellow
-        $content -replace $regex,$replace| Out-File $text_file -Encoding ascii -Force
-        exit_on_error
-    }
-}
-function disable_download_prebuilt_dependencies($cmakelists_root){
-    args_not_null_empty_undefined cmakelists_root
-    exit_if_not_exist $cmakelists_root -type Leaf 
-    regex_replace_file -text_file $cmakelists_root `
-                       -regex '(^\s*include\s*\(\s*cmake/WindowsDownloadPrebuiltDependencies\.cmake\s*\))' `
-                       -replace "$sign#`$1" `
-                       -msg "(禁止 Windows 预编译库下载) disable download prebuilt dependencies ($cmakelists_root)" 
-}
-$regex_gtest_definitions="\n\s*if\s*\(NOT\s+MSVC\)\s*target_compile_definitions\s*\(\s*gtest\s+PUBLIC\s+-DGTEST_USE_OWN_TR1_TUPLE\s*\)\s*endif\s*\(\s*\)"
 
-function remove_gtest_use_own_tr1_tuple($cmakelists){
-    args_not_null_empty_undefined cmakelists
-    exit_if_not_exist $cmakelists -type Leaf 
-    $content=Get-Content $cmakelists
-    if(($content -join "`n") -match $regex_gtest_definitions){
-        Write-Host "(找到正确的GTEST_USE_OWN_TR1_TUPLE定义)find GTEST_USE_OWN_TR1_TUPLE definition for gtest" -ForegroundColor Yellow
-        return
-    }
-    $sign="#deleted by guyadong,remove GTEST_USE_OWN_TR1_TUPLE definition,do not edit it`n"
-    regex_replace_file  -text_file $cmakelists `
-                        -regex '(^\s*add_definitions\s*\()\s*-DGTEST_USE_OWN_TR1_TUPLE\s*(\))' `
-                        -replace "$sign#`$0`n" `
-                        -msg "(删除GTEST_USE_OWN_TR1_TUPLE) remove GTEST_USE_OWN_TR1_TUPLE from add_definitions ($cmakelists)"
-    regex_replace_file  -text_file $cmakelists `
-                        -regex '(^\s*add_definitions\s*\()(.*)-DGTEST_USE_OWN_TR1_TUPLE(.*)(\))' `
-                        -replace "$sign`$1`$2`$3`$4" `
-                        -msg "(删除GTEST_USE_OWN_TR1_TUPLE) remove GTEST_USE_OWN_TR1_TUPLE from add_definitions ($cmakelists)"
-    regex_replace_file  -text_file $cmakelists `
-                        -regex '(^\s*target_compile_definitions\s*\()\s*(?:(?:(?:INTERFACE|PUBLIC|PRIVATE)\s+)?-DGTEST_USE_OWN_TR1_TUPLE)\s*(\))' `
-                        -replace "$sign#`$0" `
-                        -msg "(删除GTEST_USE_OWN_TR1_TUPLE) remove GTEST_USE_OWN_TR1_TUPLE from add_definitions ($cmakelists)"
-    regex_replace_file  -text_file $cmakelists `
-                        -regex '(^\s*target_compile_definitions\s*\()(.*)(?:(?:(?:INTERFACE|PUBLIC|PRIVATE)\s+)?-DGTEST_USE_OWN_TR1_TUPLE)(.*)(\))' `
-                        -replace "$sign#`$1`$2`$3`$4" `
-                        -msg "(删除GTEST_USE_OWN_TR1_TUPLE) remove GTEST_USE_OWN_TR1_TUPLE from add_definitions ($cmakelists)"
-}
-
-function add_gtest_use_own_tr1_tuple($cmakelists){
-    args_not_null_empty_undefined cmakelists
-    exit_if_not_exist $cmakelists -type Leaf 
-    if((Get-Item $cmakelists).Directory.Name -ne 'gtest'){
-        Write-Host "only CMakeLists.txt on 'gtest' folder" -ForegroundColor Yellow
-        call_stack
-        exit -1
-    }
-    $content=(Get-Content $cmakelists ) -join "`n"
-    $sign="#added by guyadong,add GTEST_USE_OWN_TR1_TUPLE definition for gtest,do not edit it`n"    
-    if( ! ($content -match $regex_gtest_definitions)){
-        Write-Host "(添加GTEST_USE_OWN_TR1_TUPLE定义) add GTEST_USE_OWN_TR1_TUPLE for gtest ($cmakelists)" -ForegroundColor Yellow
-        $content + "${sign}if(NOT MSVC)
-  target_compile_definitions(gtest PUBLIC -DGTEST_USE_OWN_TR1_TUPLE)
-endif()"| Out-File $cmakelists -Encoding ascii -Force
-        exit_on_error
-    }
-}
-function modify_gtest_use_own_tr1_tuple($caffe_root){
-    args_not_null_empty_undefined caffe_root
-    ls $caffe_root -Filter 'CMakeLists.txt' | foreach {
-        remove_gtest_use_own_tr1_tuple $_        
-    }
-    add_gtest_use_own_tr1_tuple [io.path]::Combine( $caffe_root,'src','gtest','CMakeLists.txt')
-}
-#remove_gtest_use_own_tr1_tuple('D:\caffe-ssd-win32\CMakeLists.txt')
-#add_gtest_use_own_tr1_tuple('D:\caffe-ssd-win32\src\gtest\CMakeLists.txt')
-#remove_gtest_use_own_tr1_tuple('D:\caffe-ssd-win32\src\gtest\CMakeLists.txt')
-exit 0
-# 基于 caffe 项目代码通用补丁函数, 
-# 所有 caffe 系列项目fetch后 应先调用此函数做修补
-# $caffe_root caffe 源码根目录
-function modify_caffe_general([string]$caffe_root){
-    args_not_null_empty_undefined caffe_root
-    exit_if_not_exist $caffe_root -type Container
-    # 通过是不是有src/caffe 文件夹判断是不是 caffe 项目
-    exit_if_not_exist ([io.path]::Combine($caffe_root,'src','caffe')) -type Container -msg "$caffe_root 好像不是个 caffe 源码文件夹"
-    $cmakelists_root=Join-Path $caffe_root -ChildPath CMakeLists.txt
-    exit_if_not_exist $cmakelists_root -type Leaf 
-    Write-Host "function:$($MyInvocation.MyCommand) ->  caffe 项目代码通用修复"    
-    disable_download_prebuilt_dependencies $cmakelists_root
-    $content=Get-Content $cmakelists_root
-    $regex_protobuf='(^\s*caffe_option\s*\(\s*protobuf_MODULE_COMPATIBLE\s+.*\s+)(?:ON|OFF)\s+IF\s+MSVC\s*\)'
-    if( $content -match $regex_protobuf){
-        Write-Host "set protobuf_MODULE_COMPATIBLE always ON"
-        $content -replace $regex_protobuf,'$1ON)#modify by guyadong,always set ON'| Out-File $cmakelists_root -Encoding ascii -Force
-        exit_on_error
-    }
-    $dependencies_cmake= [io.path]::combine( $caffe_root,'cmake','Dependencies.cmake')
-    $content=(Get-Content $dependencies_cmake) -join "`n"
-    $regex_hdf5_block="(\n#\s*---\s*\[\s*HDF5.*\n)[\s\S]+(\nlist\s*\(\s*APPEND\s+Caffe_INCLUDE_DIRS\s+PUBLIC\s+\$\{HDF5_INCLUDE_DIRS\}\s*\))"
-    $regex_hdf5_start="(\n#\s*---\s*\[\s*HDF5.*\n)"
-    $regex_hdf5_body="([\s\S]+)"
-    $regex_hdf5_end_1="\n\s*list\s*\(\s*APPEND\s+Caffe_INCLUDE_DIRS\s+PUBLIC\s+\$\{HDF5_INCLUDE_DIRS\}\s*\)"
-    $regex_hdf5_end_2="\n\s*include_directories\s*\(.+\)"
-    if($content -match $regex_hdf5_block){
-        Write-Host "(修正 hdf5 依赖库) use hdf5 static library ($dependencies_cmake)"
-        $content -replace $regex_hdf5_block,'$1#modified by guyadong 
-# Find HDF5 always using static libraries
-find_package(HDF5 COMPONENTS C HL REQUIRED)
-set(HDF5_LIBRARIES hdf5-static)
-set(HDF5_HL_LIBRARIES hdf5_hl-static)$2'| Out-File $dependencies_cmake -Encoding ascii -Force
-        exit_on_error 
-    }else{
-        Write-Host "(没有找到 HDF5 相关代码)，found hdf5 flags in $dependencies_cmake" -ForegroundColor Yellow
-        call_stack
-        exit -1
-    }
-	echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $caffe_root"	
-    cp -Path ([io.path]::Combine($PATCH_ROOT,'caffe_base','*')) -Destination $caffe_root -Recurse -Force -Verbose    
-	exit_on_error 
-}
 # 基于 BVLC/caffe windows brance 项目(https://github.com/BVLC/caffe/tree/windows)代码补丁函数,主要为了mingw编译
 # $caffe_root caffe 源码根目录
 function modify_bvlc_caffe_windows([string]$caffe_root){
@@ -477,6 +355,7 @@ function modify_leveldb(){
 	    exit_on_error
     }
 }
+. "$PSScriptRoot/modwin.ps1"
 function modify_lmdb(){
     $lmdb_src=[io.path]::Combine($SOURCE_ROOT,$LMDB_INFO.folder,'libraries','liblmdb')
     echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $lmdb_src"	
