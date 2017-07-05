@@ -19,7 +19,7 @@ param(
 if(!$BUILD_VARS_INCLUDED){
 . "$PSScriptRoot/build_vars.ps1"
 }
-
+. "$PSScriptRoot/modwin.ps1"
 
 # $file 待检查的文件路径
 # $md5 md5校验码

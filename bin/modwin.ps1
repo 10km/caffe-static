@@ -192,11 +192,13 @@ endif()
     if( !($content -match $regex_boost_block)){
         Write-Host "警告:(没有匹配到find boost package相关代码) warning:not match code for finding  boost package regular expression in $dependencies_cmake" -ForegroundColor Yellow
         Write-Host "程序以'# ---[ Boost' 和 '# ---[ Threads' 为标记查找findg boost package相关的代码块来实现代码自动更新。
-如果没有找到这两个标记，无法完成自动更新,请手工将如下代码复制到 $dependencies_cmake 
-如果不是用Visual Studio 2013编译，可以忽略此警告.
-如果用Visual Studio 2013编译，请将如下代码添加到 $dependencies_cmake 开始的位置,否则编译会报错：
+如果没有找到这两个标记，无法完成自动更新.
+如果不是用Visual Studio 2013编译，可以使用 -skip_fix_boost_vs2013 跳过此步骤.
+如果用Visual Studio 2013编译，请将如下代码添加到 $dependencies_cmake 开始的位置,否则编译时会报错：
 $patch_code
 "
+        call_stack
+        exit -1
     }
     regex_replace_file -text_file $dependencies_cmake `
                         -regex $regex_boost_block `
@@ -258,6 +260,61 @@ function modify_src_cmake_list($caffe_root){
                         -replace '$1 ${Caffe_LINKER_LIBS} $2' `
                         -msg "(修正tools下target 没有连接库的问题)，add dependencies libraries for executable targets in tools $tools_cmake"
 }
+# 修改源码以适应 MinGW 编译 src/caffe/util/db_lmdb.cpp
+function modify_for_mingw_db_lmdb_cpp($caffe_root){
+    args_not_null_empty_undefined caffe_root
+    $db_lmdb_cpp=[io.path]::Combine($caffe_root,'src','caffe','util','db_lmdb.cpp')
+    if( !(Test-Path $db_lmdb_cpp -PathType Leaf)){
+        Write-Host "(警告:没有找到文件),not found $db_lmdb_cpp" -ForegroundColor Yellow
+        return
+    }
+    $content=(Get-Content $db_lmdb_cpp) -join "`n"
+    # 找到 包含 guyadong 标记的更新代码
+    if($content -match '\s*//\s*.*guyadong.*\n\s*#if.*\n[\s\S]+?\s*#endif'){        
+        Write-Host "(代码不必再更新),code is update of date $db_lmdb_cpp"
+        $Matches[0]
+        return
+    }
+    $sign='// modify by guyadong,for WIN32 building with MinGW'
+    $if_expression='#if defined WIN32 && (defined _MSC_VER || defined __MINGW__ || defined __MINGW64__ || defined __MINGW32__)'
+    $code="`n$sign`n$if_expression`n#include <direct.h>`n#define mkdir(X, Y) _mkdir(X)`n#endif`n"
+    $regex_def='(\s*#if.*_MSC_VER.*\n)(?:\s*(?://.*)?\n)*\s*#include <direct.h>\s*(?://.*)?\n(?:\s*(?://.*)?\n)*\s*#define\s+mkdir\s*\(\s*X\s*,\s*Y\s*\)\s+_mkdir\s*\(\s*X\s*\)\s*\n(?:\s*(?://.*)?\n)*\s*#endif'
+    if( $content -match $regex_def ){
+        $m=($Matches[1].trim() -replace '\s+',' ') -replace '\s*([^A-Za-z0-9_\s]+)\s*','$1'
+        $f=($if_expression.trim() -replace '\s+',' ') -replace '\s*([^A-Za-z0-9_\s]+)\s*','$1'
+        if($m -eq $f){
+            Write-Host "(代码不必再更新),code is update of date $db_lmdb_cpp"
+            $Matches[0]
+            return
+        }
+        regex_replace_file  -text_file $db_lmdb_cpp `
+                    -regex  $regex_def `
+                    -replace $code `
+                    -msg "(改进宏定义条件判断)modify preprocessor expression for MinGW $db_lmdb_cpp" `
+                    -join
+        return
+    }
+    regex_replace_file -text_file $db_lmdb_cpp `
+                        -regex '\s*#include\s+"caffe/util/db_lmdb\.hpp"\s*\n' `
+                        -replace "`$0$code" `
+                        -msg "(改进宏定义条件判断)modify preprocessor expression for MinGW $db_lmdb_cpp" `
+                        -join
+}
+# 修改源码以适应 MinGW 编译 src/caffe/util/signal_handler.cpp
+function modify_for_mingw_signal_handler_cpp($caffe_root){
+    args_not_null_empty_undefined caffe_root
+    $signal_handler_cpp=[io.path]::Combine($caffe_root,'src','caffe','util','signal_handler.cpp')
+    $sign='// modify by guyadong,for WIN32 building with MinGW'
+    regex_replace_file -text_file $signal_handler_cpp `
+                    -regex '\s*(#\s*ifdef\s+_MSC_VER|#\s*if\s+defined(\s+|\s*\(\s*)_MSC_VER(\s*\))?)' `
+                    -replace "$sign`n#if defined WIN32 && (defined _MSC_VER || defined __MINGW__ || defined __MINGW64__ || defined __MINGW32__)" `
+                    -msg "(改进宏定义条件判断)modify preprocessor expression for MinGW $db_lmdb_cpp" `
+
+}
+function modify_for_mingw($caffe_root){
+    modify_for_mingw_signal_handler_cpp $caffe_root
+    modify_for_mingw_db_lmdb_cpp $caffe_root
+}
 # 基于 caffe 项目代码通用补丁函数, 
 # 所有 caffe 系列项目fetch后 应先调用此函数做修补
 # $caffe_root caffe 源码根目录
@@ -277,3 +334,4 @@ function modify_caffe_general([string]$caffe_root){
 #support_boost_vs2013 D:\caffe-ssd-win32
 #modify_find_hdf5 D:\caffe-ssd-win32
 #modify_src_cmake_list D:\caffe-ssd-win32
+modify_for_mingw D:\caffe-ssd-win32
