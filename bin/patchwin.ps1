@@ -372,6 +372,5 @@ function modify_caffe_folder([string]$caffe_root,$patch_root=$PATCH_ROOT){
     modify_for_mingw $caffe_root
     echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $caffe_root"	
     cp -Path ([io.path]::Combine($patch_root,'caffe_base','*')) -Destination $caffe_root -Recurse -Force -Verbose    
-    #cp -Path ([io.path]::Combine($patch_root,'caffe_base','cmake','Modules','*')) -Destination ([io.path]::Combine($caffe_root,'cmake','Modules')) -Recurse -Force -Verbose    
 	exit_on_error 
 }

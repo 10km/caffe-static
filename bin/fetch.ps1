@@ -330,7 +330,7 @@ function fetch_lmdb(){ fetch_from_github $LMDB_INFO ; modify_lmdb }
 function fetch_snappy(){ fetch_from_github $SNAPPY_INFO; modify_snappy ; }
 function fetch_openblas(){ fetch_from_github $OPENBLAS_INFO ; modify_openblas}
 function fetch_ssd(){ fetch_from_github $SSD_INFO ; modify_ssd; }
-function fetch_ssd_win(){ fetch_from_github $CONNER99_SSD_INFO ; modify_ssd; modify_caffe_base $CONNER99_SSD_INFO;}
+function fetch_conner99_ssd(){ fetch_from_github $CONNER99_SSD_INFO ; modify_ssd; modify_caffe_base $CONNER99_SSD_INFO;}
 function fetch_caffe_windows(){ 
     fetch_from_github $CAFFE_WINDOWS_INFO ; 
     modify_caffe_base $CAFFE_WINDOWS_INFO;
@@ -380,7 +380,7 @@ author: guyadong@gdface.net
     }
 }
 # 所有项目列表
-$all_names="7z msys2 mingw32 mingw64 jom cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 caffe_windows ssd_win".Trim() -split '\s+'
+$all_names="7z msys2 mingw32 mingw64 jom cmake protobuf gflags glog leveldb lmdb snappy openblas boost hdf5 opencv bzip2 caffe_windows conner99_ssd".Trim() -split '\s+'
 # 当前脚本名称
 $my_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
 # 对于md5为空的项目，当本地存在压缩包时是否强制从网络下载
