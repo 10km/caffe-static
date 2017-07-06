@@ -25,7 +25,7 @@ function install_suffix([string]$prefix){
         $c=$BUILD_INFO.vc_version.$($BUILD_INFO.compiler)
     }else{
         $link=''
-        $c=$BUILD_INFO.compiler
+        $c=$BUILD_INFO.compiler+($BUILD_INFO.gcc_version -replace '[^\w]','')
     }
     
     $debug=$(if($BUILD_INFO.build_type -eq 'debug' ){'_d'}else{''})
@@ -273,23 +273,23 @@ $MSYS2_INFO= Get-Variable "MSYS2_INFO_$HOST_PROCESSOR" -ValueOnly
 
 # msys2安装根目录,有可能是用户自己安装的，也可能是本系统安装的
 $MSYS2_INSTALL_LOCATION=get_msys2_location
-$MINGW32_INFO= create_project_info @{
+$MINGW32_POSIX_INFO= create_project_info @{
     prefix="mingw32"
     version="5.4.0"
-    md5="ba77e5c6edff0ef12ee2c581388e2396"
+    md5="9e748a2033063099b4a79bfea759610b"
     folder="mingw32"
     package_suffix=".7z"
 } -no_install_path
-$MINGW64_INFO= create_project_info @{
+$MINGW64_POSIX_INFO= create_project_info @{
     prefix="mingw64"
     version="5.4.0"
-    md5="5dbea964148e9b272c66531ca1bf04d9"
+    md5="0e605e8ab54db04783f550e7df6ac7fc"
     folder="mingw64"
     package_suffix=".7z"
 } -no_install_path
 # 添加root属性
-Add-Member -InputObject $MINGW32_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MINGW32_INFO.folder -Path $TOOLS_ROOT )
-Add-Member -InputObject $MINGW64_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MINGW64_INFO.folder -Path $TOOLS_ROOT )
+Add-Member -InputObject $MINGW32_POSIX_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MINGW32_POSIX_INFO.folder -Path $TOOLS_ROOT )
+Add-Member -InputObject $MINGW64_POSIX_INFO -NotePropertyName root -NotePropertyValue (Join-Path -ChildPath $MINGW64_POSIX_INFO.folder -Path $TOOLS_ROOT )
 
 $7Z_INFO_X86= create_project_info @{
     prefix="7z"

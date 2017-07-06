@@ -265,7 +265,7 @@ function detect_compiler(){
                 $gcc_exe=where_first $gcc_exe
                 if(!$gcc_exe){
                     # 如果系统中没有检测到 gcc 编译器则使用自带的 mingw 编译器
-                    $mingw=$(if($BUILD_INFO.arch -eq 'x86'){$MINGW32_INFO}else{$MINGW64_INFO})                    
+                    $mingw=$(if($BUILD_INFO.arch -eq 'x86'){$MINGW32_POSIX_INFO}else{$MINGW64_POSIX_INFO})                    
                     if(!(Test-Path $mingw.root -PathType Container)){
                         continue
                     }
@@ -757,13 +757,13 @@ function build_openblas(){
         $mingw_make=$BUILD_INFO.make_exe
         $mingw_version=$BUILD_INFO.gcc_version
     }elseif($BUILD_INFO.arch -eq 'x86'){
-        $mingw_bin= Join-Path $MINGW32_INFO.root -ChildPath 'bin'
+        $mingw_bin= Join-Path $MINGW32_POSIX_INFO.root -ChildPath 'bin'
         exit_if_not_exist $mingw_bin -type Container -msg "(没有安装 mingw32 编译器),mingw32 not found,install it by running ./fetch.ps1 mingw32"
-        $mingw_version=$MINGW32_INFO.version
+        $mingw_version=$MINGW32_POSIX_INFO.version
     }else{
-        $mingw_bin= Join-Path $MINGW64_INFO.root -ChildPath 'bin'
+        $mingw_bin= Join-Path $MINGW64_POSIX_INFO.root -ChildPath 'bin'
         exit_if_not_exist $mingw_bin -type Container -msg "(没有安装 mingw64 编译器),mingw64 not found,install it by running ./fetch.ps1 mingw64"
-        $mingw_version=$MINGW64_INFO.version
+        $mingw_version=$MINGW64_POSIX_INFO.version
     }    
     $src_root=Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder
     $msys2bash=[io.path]::Combine($MSYS2_INSTALL_LOCATION,'usr','bin','bash')

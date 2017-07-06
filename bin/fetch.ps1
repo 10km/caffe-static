@@ -120,7 +120,7 @@ function download_and_extract([PSObject]$info,[string]$uri,[string]$targetRoot=$
             exit -1
         }
 	}elseif($list_only){
-        throw "${SKIP_DOWNLOAD_PREFIX}: $package_path"
+        throw "${SKIP_DOWNLOAD_PREFIX}: $package_path download from $uri"
     }	
     if(!$noUnpack){
 	    remove_if_exist (Join-Path $targetRoot $info.folder)
@@ -179,14 +179,14 @@ function fetch_jom(){
 }
 # 下载 mingw32 (MinGW 32位编译器) 压缩包解压到 $TOOLS_ROOT
 function fetch_mingw32(){
-    $poject=$MINGW32_INFO
-    $uri= "https://nchc.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/$($poject.version)/threads-win32/dwarf/i686-$($poject.version)-release-win32-dwarf-rt_v5-rev0.7z"
+    $poject=$MINGW32_POSIX_INFO
+    $uri= "https://nchc.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/$($poject.version)/threads-posix/dwarf/i686-$($poject.version)-release-posix-dwarf-rt_v5-rev0.7z"
     download_and_extract -info $poject -uri $uri -targetRoot $TOOLS_ROOT	
 }
 # 下载 mingw64 (MinGW 64位编译器) 压缩包解压到 $TOOLS_ROOT
 function fetch_mingw64(){
-    $poject=$MINGW64_INFO
-    $uri= "https://nchc.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win64/Personal%20Builds/mingw-builds/$($poject.version)/threads-win32/sjlj/x86_64-$($poject.version)-release-win32-sjlj-rt_v5-rev0.7z"
+    $poject=$MINGW64_POSIX_INFO
+    $uri= "https://nchc.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win64/Personal%20Builds/mingw-builds/$($poject.version)/threads-posix/seh/x86_64-$($poject.version)-release-posix-seh-rt_v5-rev0.7z"
     download_and_extract -info $poject -uri $uri -targetRoot $TOOLS_ROOT	
 }
 # 下载 msys2 压缩包并安装
