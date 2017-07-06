@@ -375,17 +375,3 @@ function modify_caffe_folder([string]$caffe_root,$patch_root=$PATCH_ROOT){
     #cp -Path ([io.path]::Combine($patch_root,'caffe_base','cmake','Modules','*')) -Destination ([io.path]::Combine($caffe_root,'cmake','Modules')) -Recurse -Force -Verbose    
 	exit_on_error 
 }
-
-#remove_gtest_use_own_tr1_tuple('D:\caffe-ssd-win32\CMakeLists.txt')
-#add_gtest_use_own_tr1_tuple('D:\caffe-ssd-win32\src\gtest\CMakeLists.txt')
-#remove_gtest_use_own_tr1_tuple('D:\caffe-ssd-win32\src\gtest\CMakeLists.txt')
-#modify_caffe_set_caffe_link D:\caffe-ssd-win32
-#modify_protobuf_cmake D:\caffe-ssd-win32
-#support_boost_vs2013 D:\caffe-ssd-win32
-#modify_find_hdf5 D:\caffe-ssd-win32
-#modify_src_cmake_list D:\caffe-ssd-win32
-#modify_for_mingw D:\caffe-ssd-win32
-#modify_cmakelists_root_for_windows D:\caffe-static\package\caffe-windows
-#modify_for_mingw_signal_handler_cpp D:\caffe-ssd-win32
-#modify_caffe_folder -caffe_root ..\source\caffe-windows -patch_root ..\patch
-#modify_caffe_folder -caffe_root D:\caffe-ssd-win32 -patch_root D:\caffe-static\patch
