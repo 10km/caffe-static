@@ -1039,8 +1039,10 @@ function sorted_project([string[]]$available_names){
     $sorted_names
 }
 $caffe_name='caffe_windows'
+$caffe_projects="$caffe_name conner99_ssd".Trim() -split '\s+'
+$dependencies_projects='gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf'.Trim() -split '\s+' 
 # 所有项目列表字符串数组
-$all_project_names="gflags glog bzip2 boost leveldb lmdb snappy openblas hdf5 opencv protobuf $caffe_name".Trim() -split '\s+'
+$all_project_names=$dependencies_projects + $caffe_projects
 
 # 当前脚本名称
 $current_script_name=$($(Get-Item $MyInvocation.MyCommand.Definition).Name)
@@ -1066,7 +1068,7 @@ if(! $build_project_names){
 # 因为各个项目之间有前后依赖关系,所以这里对输入的名字顺序重新排列，确保正确的依赖关系
 $build_project_names=$build_project_names | sorted_project $all_project_names
 $build_project_names| foreach {    
-    if( ! (Test-Path function:"build_$($_.ToLower())")){
+    if( (! (Test-Path function:"build_$($_.ToLower())")) -and (! ($caffe_projects -contains $_))){
         echo "(不识别的项目名称)unknow project name:$_"
         print_help
         exit -1
@@ -1098,14 +1100,15 @@ if($fetch_names.Count){
 
 # 顺序编译 $build_project_names 中指定的项目
 $build_project_names| foreach {
-    if($_ -eq $caffe_name){
+    if($caffe_projects -contains $_){
         $info_prefix=$_
         if($custom_caffe_folder){
             init_custom_custom_info
             $info_prefix='CAFFE_CUSTOM'
         }
-        build_caffe_windows(Get-Variable "$($info_prefix.ToLower())_INFO" -ValueOnly)
-    }else{
+        build_caffe_windows(Get-Variable "$($info_prefix.ToUpper())_INFO" -ValueOnly)
+    }
+    else{
         &build_$($_.ToLower())      
     }     
 }

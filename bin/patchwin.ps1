@@ -6,7 +6,8 @@ if(!$BUILD_VARS_INCLUDED){
 . "$PSScriptRoot/build_funs.ps1"
 }
 
-# 在文本文件中用正则表达式搜索替换字符串并将修改后的内容回写到文件中
+# 在文本文件中用正则表达式搜索替换字符串并将修改后的内容回写到文件中,
+# 并显示修改前后内容比较
 function regex_replace_file($text_file,$regex,$replace,$msg,[switch]$join){
     args_not_null_empty_undefined text_file regex 
     exit_if_not_exist $text_file -type Leaf 
@@ -27,6 +28,7 @@ function regex_replace_file($text_file,$regex,$replace,$msg,[switch]$join){
         Write-Host $msg -ForegroundColor Yellow
         $content -replace $regex,$replace| Out-File $text_file -Encoding ascii -Force 
         exit_on_error
+        # 显示所有修改内容的前后比较
         $lines | foreach{
             $_
             '====> '
@@ -81,7 +83,7 @@ function add_gtest_use_own_tr1_tuple($cmakelists){
         exit -1
     }
     $content=(Get-Content $cmakelists ) -join "`n"
-    $sign="#added by guyadong,add GTEST_USE_OWN_TR1_TUPLE definition for gtest,do not edit it`n"    
+    $sign="`n#added by guyadong,add GTEST_USE_OWN_TR1_TUPLE definition for gtest,do not edit it`n"    
     if( ! ($content -match $regex_gtest_definitions)){
         Write-Host "(添加GTEST_USE_OWN_TR1_TUPLE定义) add GTEST_USE_OWN_TR1_TUPLE for gtest ($cmakelists)" -ForegroundColor Yellow
         $content + "${sign}if(NOT MSVC)
@@ -94,9 +96,9 @@ endif(NOT MSVC)"| Out-File $cmakelists -Encoding ascii -Force
 function modify_gtest_use_own_tr1_tuple($caffe_root){
     args_not_null_empty_undefined caffe_root
     ls $caffe_root -Filter 'CMakeLists.txt' | foreach {
-        remove_gtest_use_own_tr1_tuple $_        
+        remove_gtest_use_own_tr1_tuple $_.FullName        
     }
-    add_gtest_use_own_tr1_tuple [io.path]::Combine( $caffe_root,'src','gtest','CMakeLists.txt')
+    add_gtest_use_own_tr1_tuple ([io.path]::Combine( $caffe_root,'src','gtest','CMakeLists.txt'))
 }
 
 # 修改 set_caffe_link 加入 MSVC 支持
@@ -158,15 +160,15 @@ function modify_protobuf_cmake($caffe_root){
         }
     }
     $find_package_block=$Matches
-    $hdf5_include_dir=($find_package_block[2] -split "`n") -match '(list|include_directories)\s*\(.*PROTOBUF_INCLUDE_DIR.*\)'
+    $protobuf_include_dir=($find_package_block[2] -split "`n") -match '(list|include_directories)\s*\(.*PROTOBUF_INCLUDE_DIR.*\)'
     $protobuf_libraries=($find_package_block[2] -split "`n") -match 'list\s*\(.*PROTOBUF_LIBRARIES.*\)'
-    if(!$hdf5_include_dir -or !$protobuf_libraries){
+    if(!$protobuf_include_dir -or !$protobuf_libraries){
         Write-Host "(正则表达没有匹配到 PROTOBUF_INCLUDE_DIR PROTOBUF_LIBRARIES 赋值代码)not found PROTOBUF_INCLUDE_DIR PROTOBUF_LIBRARIES assing statement by regular expression in $protobuf_cmake"
         call_stack
         exit -1
     }
     $sign="# modified by guyadong`n# search using protobuf-config.cmake"
-    $find_package_block[2]="$sign`nfind_package( Protobuf REQUIRED NO_MODULE)`nset(PROTOBUF_INCLUDE_DIR `${PROTOBUF_INCLUDE_DIRS})`n$($hdf5_include_dir.trim())`n$($protobuf_libraries.trim())"
+    $find_package_block[2]="$sign`nfind_package( Protobuf REQUIRED NO_MODULE)`nset(PROTOBUF_INCLUDE_DIR `${PROTOBUF_INCLUDE_DIRS})`n$($protobuf_include_dir.trim())`n$($protobuf_libraries.trim())"
     Write-Host "(修改 protobuf 检测代码) modify profobuf find package $protobuf_cmake"
     $content.Replace($find_package_block[0],($find_package_block[1..3] -join "`n")) -split "`n" | Out-File $protobuf_cmake -Encoding ascii -Force
     $find_package_block[2]
@@ -174,6 +176,9 @@ function modify_protobuf_cmake($caffe_root){
 # 修复 VS2013编译时， boost 
 function support_boost_vs2013($caffe_root){    
     args_not_null_empty_undefined caffe_root
+    if($skip_fix_boost_vs2013){
+        return 
+    }
     $dependencies_cmake= [io.path]::combine( $caffe_root,'cmake','Dependencies.cmake')
     exit_if_not_exist $dependencies_cmake -type Leaf 
     $regex_code='\s*if\s*\(\s*(?:(?:DEFINED\s+)?)MSVC\s+AND\s+CMAKE_CXX_COMPILER_VERSION VERSION_LESS\s+18.0.40629.0\s*\)((?:(?:\n\s*|\s*#.*\n))*)\s*add_definitions\s*\(\s*-DBOOST_NO_CXX11_TEMPLATE_ALIASES\s*\)\s*endif\(.*\)'
@@ -254,11 +259,6 @@ function modify_src_cmake_list($caffe_root){
                         -regex '(^\s*target_link_libraries\(caffe\s+)(?!PUBLIC\s+)(.*\$\{Caffe_LINKER_LIBS\}\))' `
                         -replace '$1PUBLIC $2' `
                         -msg "(修正tools下target 没有连接库的问题),add PUBLIC keyword $src_caffe_cmake"
-    $tools_cmake=[io.path]::combine( $caffe_root,'tools','CMakeLists.txt')
-    regex_replace_file  -text_file $tools_cmake `
-                        -regex '(^\s*target_link_libraries\s*\(\s*\$\{\s*name\s*\}\s+\$\s*\{\s*Caffe_LINK\s*\}(?:(?!\s+\$\{\s*Caffe_LINKER_LIBS\s*\}).)*)(\s*\))' `
-                        -replace '$1 ${Caffe_LINKER_LIBS} $2' `
-                        -msg "(修正tools下target 没有连接库的问题)，add dependencies libraries for executable targets in tools $tools_cmake"
 }
 # 修改源码以适应 MinGW 编译 src/caffe/util/db_lmdb.cpp
 function modify_for_mingw_db_lmdb_cpp($caffe_root){
@@ -277,8 +277,9 @@ function modify_for_mingw_db_lmdb_cpp($caffe_root){
     }
     $sign='// modify by guyadong,for WIN32 building with MinGW'
     $if_expression='#if defined WIN32 && (defined _MSC_VER || defined __MINGW__ || defined __MINGW64__ || defined __MINGW32__)'
-    $code="`n$sign`n$if_expression`n#include <direct.h>`n#define mkdir(X, Y) _mkdir(X)`n#endif`n"
-    $regex_def='(\s*#if.*_MSC_VER.*\n)(?:\s*(?://.*)?\n)*\s*#include <direct.h>\s*(?://.*)?\n(?:\s*(?://.*)?\n)*\s*#define\s+mkdir\s*\(\s*X\s*,\s*Y\s*\)\s+_mkdir\s*\(\s*X\s*\)\s*\n(?:\s*(?://.*)?\n)*\s*#endif'
+    $code0="$if_expression`n#include <direct.h>`n#define mkdir(X, Y) _mkdir(X)`n#endif`n"
+    $code="`n$sign`n$code0"
+    $regex_def='(\s*#if.*_MSC_VER.*\n)(?:\s*(?://.*)?\n)*\s*#include <direct.h>\s*(?://.*)?\n(?:\s*(?://.*)?\n)*\s*#define\s+mkdir\s*\(\s*\w+\s*,\s*\w+\s*\)\s+_mkdir\s*\(\s*\w+\s*\)\s*\n(?:\s*(?://.*)?\n)*\s*#endif'
     if( $content -match $regex_def ){
         $m=($Matches[1].trim() -replace '\s+',' ') -replace '\s*([^A-Za-z0-9_\s]+)\s*','$1'
         $f=($if_expression.trim() -replace '\s+',' ') -replace '\s*([^A-Za-z0-9_\s]+)\s*','$1'
@@ -293,6 +294,17 @@ function modify_for_mingw_db_lmdb_cpp($caffe_root){
                     -msg "(改进宏定义条件判断)modify preprocessor expression for MinGW $db_lmdb_cpp" `
                     -join
         return
+    }elseif( $content -match '\s*#define\s+mkdir\s*\(\s*\w+\s*,\s*\w+\s*\)\s+_mkdir\s*\(\s*\w+\s*\)' ){
+        Write-Host "找到了 $($Matches[0].trim()) 代码,但是逻辑结构比较复杂,没办法自动修正代码。请手工检查修复。
+如果你不需要用 MinGW 编译,可以在命令行加 -skip_fix_formingw 跳过此步骤" -ForegroundColor Yellow
+        Write-Host "说明:这个代码文件中用到了mkdir函数用于创建文件夹,linux gcc中的mkdir有两个参数(文件夹名,权限),
+MSVC和MinGW也有名为_mkdir的函数用于创建文件夹，但只有一个参数(文件夹名),
+所以这里需要一个名为mkdir的宏,将对mkdir的调用转换为_mkdir,代码如下：
+$code0 
+请参照上面的代码原理修复此代码,手工修复代码后,fetch时请加 -skip_fix_formingw 跳过此步骤"
+        call_stack
+        exit -1
+
     }
     regex_replace_file -text_file $db_lmdb_cpp `
                         -regex '\s*#include\s+"caffe/util/db_lmdb\.hpp"\s*\n' `
@@ -304,26 +316,64 @@ function modify_for_mingw_db_lmdb_cpp($caffe_root){
 function modify_for_mingw_signal_handler_cpp($caffe_root){
     args_not_null_empty_undefined caffe_root
     $signal_handler_cpp=[io.path]::Combine($caffe_root,'src','caffe','util','signal_handler.cpp')
+    if(!((Get-Content $signal_handler_cpp) -match '^\s*#if(?:def)?\s+.*(WIN32|_MSC_VER).*$')){
+        Write-Host "这个代码好像没有针对 windows 编译做过修改，请检查代码 $signal_handler_cpp
+如果你不需要用 MinGW 编译,可以在命令行加 -skip_fix_formingw 跳过此步骤"
+        call_stack
+        exit -1
+    }
     $sign='// modify by guyadong,for WIN32 building with MinGW'
     regex_replace_file -text_file $signal_handler_cpp `
                     -regex '\s*(#\s*ifdef\s+_MSC_VER|#\s*if\s+defined(\s+|\s*\(\s*)_MSC_VER(\s*\))?)' `
                     -replace "$sign`n#if defined WIN32 && (defined _MSC_VER || defined __MINGW__ || defined __MINGW64__ || defined __MINGW32__)" `
-                    -msg "(改进宏定义条件判断)modify preprocessor expression for MinGW $db_lmdb_cpp" `
-
+                    -msg "(改进宏定义条件判断)modify preprocessor expression for MinGW $signal_handler_cpp" `
 }
 function modify_for_mingw($caffe_root){
-    modify_for_mingw_signal_handler_cpp $caffe_root
-    modify_for_mingw_db_lmdb_cpp $caffe_root
+    if( ! $skip_fix_formingw){
+        modify_for_mingw_db_lmdb_cpp $caffe_root
+        modify_for_mingw_signal_handler_cpp $caffe_root
+    }
+}
+# 根据bvlccaffe windows版本的CMakeLists.txt,修改 根目录下 CMakeLists.txt 可能存在的问题
+function modify_cmakelists_root_for_windows($caffe_root){
+    args_not_null_empty_undefined caffe_root
+    $cmakelists_root=Join-Path $caffe_root -ChildPath CMakeLists.txt
+    regex_replace_file  -text_file $cmakelists_root `
+                        -regex '^\s*include\s*\(\s*cmake[/\\]WindowsDownloadPrebuiltDependencies\.cmake\s*\)' `
+                        -replace "#deleted by guyadong,disable download prebuilt dependencies`n#`$0" `
+                        -msg "(禁止 Windows 预编译库下载) disable download prebuilt dependencies ($cmakelists_root)"  
+
+    regex_replace_file  -text_file $cmakelists_root `
+                        -regex '(^\s*caffe_option\s*\(\s*protobuf_MODULE_COMPATIBLE\s+.*\s+)(?:ON|OFF)[^)]*\)\s*(?:#.*)?$' `
+                        -replace "`$1ON)#modify by guyadong,always set ON" `
+                        -msg "set protobuf_MODULE_COMPATIBLE always ON ($cmakelists_root)"  `
+
+    regex_replace_file  -text_file $cmakelists_root `
+                        -regex '(^\s*caffe_option\s*\(\s*COPY_PREREQUISITES\s+.*\s+)(?:ON|OFF)[^)]*\)\s*(?:#.*)?$' `
+                        -replace "`$1OFF)#modify by guyadong,always set OFF" `
+                        -msg "set COPY_PREREQUISITES always OFF ($cmakelists_root)"  `
+
 }
 # 基于 caffe 项目代码通用补丁函数, 
 # 所有 caffe 系列项目fetch后 应先调用此函数做修补
 # $caffe_root caffe 源码根目录
-function modify_caffe_general([string]$caffe_root){
+function modify_caffe_folder([string]$caffe_root,$patch_root=$PATCH_ROOT){
     args_not_null_empty_undefined caffe_root
     exit_if_not_exist $caffe_root -type Container
     # 通过是不是有src/caffe 文件夹判断是不是 caffe 项目
     exit_if_not_exist ([io.path]::Combine($caffe_root,'src','caffe')) -type Container -msg "$caffe_root 好像不是个 caffe 源码文件夹"
-
+    modify_cmakelists_root_for_windows $caffe_root
+    modify_src_cmake_list $caffe_root
+    modify_find_hdf5 $caffe_root
+    support_boost_vs2013 $caffe_root
+    modify_protobuf_cmake $caffe_root
+    modify_caffe_set_caffe_link $caffe_root
+    modify_gtest_use_own_tr1_tuple $caffe_root
+    modify_for_mingw $caffe_root
+    echo "function:$($MyInvocation.MyCommand) -> (复制修改的补丁文件)copy patch file to $caffe_root"	
+    cp -Path ([io.path]::Combine($patch_root,'caffe_base','*')) -Destination $caffe_root -Recurse -Force -Verbose    
+    #cp -Path ([io.path]::Combine($patch_root,'caffe_base','cmake','Modules','*')) -Destination ([io.path]::Combine($caffe_root,'cmake','Modules')) -Recurse -Force -Verbose    
+	exit_on_error 
 }
 
 #remove_gtest_use_own_tr1_tuple('D:\caffe-ssd-win32\CMakeLists.txt')
@@ -334,4 +384,8 @@ function modify_caffe_general([string]$caffe_root){
 #support_boost_vs2013 D:\caffe-ssd-win32
 #modify_find_hdf5 D:\caffe-ssd-win32
 #modify_src_cmake_list D:\caffe-ssd-win32
-modify_for_mingw D:\caffe-ssd-win32
+#modify_for_mingw D:\caffe-ssd-win32
+#modify_cmakelists_root_for_windows D:\caffe-static\package\caffe-windows
+#modify_for_mingw_signal_handler_cpp D:\caffe-ssd-win32
+#modify_caffe_folder -caffe_root ..\source\caffe-windows -patch_root ..\patch
+#modify_caffe_folder -caffe_root D:\caffe-ssd-win32 -patch_root D:\caffe-static\patch

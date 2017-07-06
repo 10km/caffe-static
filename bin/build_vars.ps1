@@ -42,7 +42,12 @@ function create_project_info([hashtable]$hash,[switch]$no_install_path){
             if($this.install_prefix){
                 $this.install_prefix}
             else{
-                $(Join-Path -ChildPath $(install_suffix $this.prefix) -Path $INSTALL_PREFIX_ROOT)
+                # caffe 项目安装路径前加作者名
+                $p=$this.prefix
+                if($this.prefix -eq 'caffe' -and $this.owner){
+                    $p="$($this.owner)_$p"                                        
+                }
+                $(Join-Path -ChildPath $(install_suffix $p) -Path $INSTALL_PREFIX_ROOT)
             }
         }
     }
@@ -206,17 +211,18 @@ $SSD_INFO= create_project_info @{
     version="ssd"
     owner="weiliu89"	
 }
+#https://github.com/conner99/caffe.git brance:ssd-microsoft 
+$CONNER99_SSD_INFO= create_project_info @{
+	prefix="caffe"
+    version="ssd-microsoft"
+    owner="conner99"	
+}
 $CAFFE_WINDOWS_INFO= create_project_info @{
 	prefix="caffe"
     version="windows"
     owner="BVLC"	
 }
-#https://github.com/conner99/caffe.git
-$CONNER99_CAFFE_SSD_WIN32_INFO= create_project_info @{
-	prefix="caffe"
-    version="ssd-microsoft"
-    owner="conner99"	
-}
+
 # 自定义 caffe 项目配置对象 
 $CAFFE_CUSTOM_INFO= create_project_info @{
 	prefix='caffe'
