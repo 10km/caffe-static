@@ -750,7 +750,7 @@ function build_openblas(){
     if( ! $MSYS2_INSTALL_LOCATION ){
         throw "没有安装MSYS2,不能编译OpenBLAS,MSYS2 not installed,please install,run : ./fetch.ps1 msys2"
     }
-    $binary=$(if($BUILD_INFO.arch -eq 'x86'){32}else{64})    
+    $binary=$(if($BUILD_INFO.arch -eq 'x86'){'BINARY=32'}else{'BINARY=64'})    
     $mingw_make="mingw32-make"
     if($BUILD_INFO.is_gcc()){
         $mingw_bin=$BUILD_INFO.gcc_location
@@ -767,22 +767,20 @@ function build_openblas(){
     }    
     $src_root=Join-Path -Path $SOURCE_ROOT -ChildPath $project.folder
     $msys2bash=[io.path]::Combine($MSYS2_INSTALL_LOCATION,'usr','bin','bash')
-    # 不用 msys2_shell.cmd 执行脚本是因为返回的exit code总是0，无法判断脚本是否正确执行
-    #$msys2bash=[io.path]::Combine($MSYS2_INSTALL_LOCATION,'msys2_shell.cmd')
     $install_path=unix_path($project.install_path())
-    #  USE_FOR_MSVC 宏定义用于控制编译 openblas 静态库代码时不使用 libmsvcrt.a 中的函数
-    #　参见 $openblase_source/Makefile.system 中 USE_FOR_MSVC 定义说明    
-    $use_for_msvc=$(if($BUILD_INFO.is_msvc()){' export USE_FOR_MSVC=1 ; '}else{''})
     #$debug_build=$(if($BUILD_INFO.build_type -eq 'debug'){'DEBUG=1'}else{''})
     # openblas 编译release版本,不受$BUILD_INFO.build_type控制,
     $debug_build='DEBUG=0'
+    $dynamic_arch='DYNAMIC_ARCH=1'
+    $use_thread='USE_THREAD=0'
+    #$num_threads='NUM_THREADS=24'
     args_not_null_empty_undefined MAKE_JOBS
     remove_if_exist "$install_path"
     # MSYS2 下的gcc 编译脚本 (bash)
     # 任何一步出错即退出脚本 exit code = -1
     # 每一行必须 ; 号结尾(最后一行除外)
     # #号开头注释行会被 combine_multi_line 函数删除,不会出现在运行脚本中
-    $bashcmd="export PATH=$(unix_path($mingw_bin)):`$PATH ;$use_for_msvc
+    $bashcmd="export PATH=$(unix_path($mingw_bin)):`$PATH ;
         # 切换到 OpenBLAS 源码文件夹 
         cd `"$(unix_path $src_root)`" ; 
         # 先执行make clean
@@ -790,12 +788,14 @@ function build_openblas(){
         $mingw_make clean ;
         if [ ! `$? ];then exit -1;fi; 
         # BINARY 用于指定编译32位还是64位代码 -j 选项用于指定多线程编译
-        $mingw_make -j $MAKE_JOBS BINARY=$binary $debug_build NOFORTRAN=1 NO_LAPACKE=1 NO_SHARED=1 ; 
+        $mingw_make -j $MAKE_JOBS NOFORTRAN=1 $binary $debug_build  $dynamic_arch $use_thread; 
         if [ ! `$? ];then exit -1;fi;
+        # 删除安装路径
+        #rm `"$install_path`" -fr;
+        #if [ ! `$? ];then exit -1;fi;
         # 安装到 $install_path 指定的位置
-        $mingw_make install PREFIX=`"$install_path`" NO_LAPACKE=1 NO_SHARED=1"
+        $mingw_make install PREFIX=`"$install_path`" NO_LAPACKE=1 "
     $cmd=combine_multi_line "$msys2bash -l -c `"$bashcmd`" 2>&1"
-    #$cmd="$msys2bash -where $src_root -l -c `"$bashcmd`" 2>&1"
     Write-Host "(OpenBLAS 编译中...)compiling OpenBLAS by MinGW $mingw_version ($mingw_bin)" -ForegroundColor Yellow
     cmd /c $cmd
     exit_on_error
@@ -822,6 +822,19 @@ function check_component([string]$folder,[PSObject]$info,[ref][string[]]$error_m
     args_not_null_empty_undefined folder info error_msg
     $null=(! (exist_file $folder)) -and ( $error_msg.Value+="(缺少 $($info.prefix) ),not found $folder,please build it by running ./build.ps1 $($info.prefix)")
 }
+function find_openblas([ref][string[]]$error_msg){
+    if($BUILD_INFO.is_gcc()){
+        check_component $OPENBLAS_INFO.install_path() $OPENBLAS_INFO ([ref]$error_msg)
+        return $OPENBLAS_INFO.install_path()
+    }
+    $f=ls $INSTALL_PREFIX_ROOT -Filter "$(install_suffix $OPENBLAS_INFO.prefix)*_$($BUILD_INFO.arch)"
+    if(!$f){
+        $error_msg.Value+="(缺少 $($info.prefix) ),not found $folder,please build it by running ./build.ps1 $($info.prefix)"
+    }else{
+        $f[0].FullName
+    }
+    
+}
 # cmake静态编译 caffe 系列源码(windows下编译)
 function build_caffe_windows([PSObject]$project){
     args_not_null_empty_undefined project
@@ -838,7 +851,8 @@ function build_caffe_windows([PSObject]$project){
     $hdf5_cmake_dir="$($HDF5_INFO.install_path())/cmake"
     check_component $hdf5_cmake_dir $HDF5_INFO ([ref]$error_message)
     check_component $BOOST_INFO.install_path() $BOOST_INFO ([ref]$error_message)
-    check_component $OPENBLAS_INFO.install_path() $OPENBLAS_INFO ([ref]$error_message)
+    #check_component $OPENBLAS_INFO.install_path() $OPENBLAS_INFO ([ref]$error_message)
+    $openblas_install_path=find_openblas ([ref]$error_message)
     check_component $PROTOBUF_INFO.install_path() $PROTOBUF_INFO ([ref]$error_message)
     # protobuf lib 路径
     $protobuf_lib="$($PROTOBUF_INFO.install_path())/lib"
@@ -855,7 +869,7 @@ function build_caffe_windows([PSObject]$project){
     }
     $BUILD_INFO.begin_build($null,$false,$project.root)
     # 指定 OpenBLAS 安装路径 参见 $caffe_source/cmake/Modules/FindOpenBLAS.cmake
-    $env:OpenBLAS_HOME=$OPENBLAS_INFO.install_path()
+    $env:OpenBLAS_HOME=$openblas_install_path
     # 指定 lmdb 安装路径 参见 $caffe_source/cmake/Modules/FindLMDB.cmake.cmake
     $env:LMDB_DIR=$LMDB_INFO.install_path()
     # 指定 leveldb 安装路径 参见 $caffe_source/cmake/Modules/FindLevelDB.cmake.cmake
@@ -870,15 +884,11 @@ function build_caffe_windows([PSObject]$project){
     if($BUILD_INFO.is_msvc()){
         # MSVC 关闭编译警告
         $close_warning='/wd4996 /wd4267 /wd4244 /wd4018 /wd4800 /wd4661 /wd4812 /wd4309 /wd4305 /wd4819'
-        # /SAFESEH:NO 选项解决vs2013下32位版本编译时 openblas 库(MinGW编译)连接错误,
-        if($BUILD_INFO.arch -eq 'x86'){
-            $exe_link_opetion='/SAFESEH:NO'
-        }else{
-            $exe_link_opetion=''
-        }
     }else{
         $close_warning=''    
     }
+    # MinGW编译时,指定使用静态库,参见 openblas_install_path/cmake/openblas/OpenBLASConfig.cmake
+    $openblas_use_static=$(if($BUILD_INFO.is_gcc()){'-DOpenBlas_USE_STATIC=on'}else{''})
         
     # msvc和mingw编译出来的protobuf版本install文件结构不完全相同
     # $protobuf_dir 定义 protobuf-config.cmake所在文件夹 
@@ -891,6 +901,7 @@ function build_caffe_windows([PSObject]$project){
     $env:CXXFLAGS="$close_warning"
     $env:CFLAGS  ="$close_warning"
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define('','',$exe_link_opetion)) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
+        $openblas_use_static
         -DCOPY_PREREQUISITES=off
         -DINSTALL_PREREQUISITES=off
 	    -DGLOG_ROOT_DIR=`"$($GLOG_INFO.install_path())`"

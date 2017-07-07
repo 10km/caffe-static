@@ -20,15 +20,28 @@ function get_os_processor(){
 # 生成安装路径名后缀
 function install_suffix([string]$prefix){
     args_not_null_empty_undefined prefix HOST_OS BUILD_INFO
-    if($BUILD_INFO.is_msvc()){
-        $link=$(if($BUILD_INFO.msvc_shared_runtime){'_md'}else{'_mt'})
-        $c=$BUILD_INFO.vc_version.$($BUILD_INFO.compiler)
-    }else{
+    if($prefix -eq 'openblas'){
         $link=''
-        $c=$BUILD_INFO.compiler+($BUILD_INFO.gcc_version -replace '[^\w]','')
-    }
-    
-    $debug=$(if($BUILD_INFO.build_type -eq 'debug' ){'_d'}else{''})
+        if($BUILD_INFO.is_gcc()){
+            $v=$BUILD_INFO.gcc_version
+        }elseif($mingw_version){
+            $v=$mingw_version
+        }else{
+            return "${prefix}_${HOST_OS}_gcc"
+        }
+        $c='gcc'+($v -replace '[^\w]','')
+        # openblas只有release
+        $debug=''
+    }else{
+        if($BUILD_INFO.is_gcc() ){
+            $link=''
+            $c=$BUILD_INFO.compiler+($BUILD_INFO.gcc_version -replace '[^\w]','')
+        }else{
+            $link=$(if($BUILD_INFO.msvc_shared_runtime){'_md'}else{'_mt'})
+            $c=$BUILD_INFO.vc_version.$($BUILD_INFO.compiler)
+        }
+        $debug=$(if($BUILD_INFO.build_type -eq 'debug' ){'_d'}else{''})
+    }    
     return "${prefix}_${HOST_OS}_${c}_$($BUILD_INFO.arch)$link$debug"
 }
 # 根据哈希表提供的信息创建project info对象
