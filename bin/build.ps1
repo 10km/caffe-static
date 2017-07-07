@@ -986,9 +986,10 @@ function print_help(){
     -custom,-custom_caffe_folder
                     指定编译的caffe项目文件夹
     -prefix,-custom_install_prefix
-                    caffe 项目安装路径,默认安装到 $INSTALL_PREFIX_ROOT
+                    caffe 项目安装路径,默认安装到 $INSTALL_PREFIX_ROOT,仅在指定-custom_caffe_folder时有效
     -skip,-custom_skip_patch
-                    跳过补丁更新,默认每次build前都会执行补丁更新,参见 fetch.ps1 中 modify_caffe_folder 函数
+                    跳过补丁更新,默认每次build前都会执行补丁更新,仅在指定-custom_caffe_folder时有效
+                    参见 fetch.ps1 中 modify_caffe_folder 函数
 选项:
     -c,-compiler    指定编译器类型,可选值: vs2013,vs2015,gcc,默认 auto(自动侦测)
                     指定为gcc时,如果没有检测到MinGW编译器,则使用本系统自带的MinGW编译器
@@ -1030,9 +1031,9 @@ all projects builded if no name argument
     -custom,-custom_caffe_folder
                     caffe folder for building
     -prefix,-custom_install_prefix
-                    default is $INSTALL_PREFIX_ROOT
+                    default is $INSTALL_PREFIX_ROOT,effective only when -custom_caffe_folder defined
     -skip,-custom_skip_patch
-                    no patch for caffe                    
+                    no patch for caffe,effective only when -custom_caffe_folder defined                    
                     see also the 'modify_caffe_folder' function in fetch.ps1 
 options:
     -c,-compiler    compiler type,valid value:'vs2013','vs2015','gcc',default 'auto' 
