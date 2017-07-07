@@ -20,13 +20,19 @@ function get_os_processor(){
 # 生成安装路径名后缀
 function install_suffix([string]$prefix){
     args_not_null_empty_undefined prefix HOST_OS BUILD_INFO
+    # openblas因为是固定使用 MinGW 编译，所以命名方式比较特殊
     if($prefix -eq 'openblas'){
         $link=''
         if($BUILD_INFO.is_gcc()){
+            # 当 MinGW 编译时 调用$BUIL_INFO.install_path()函数会进入这个分支
             $v=$BUILD_INFO.gcc_version
         }elseif($mingw_version){
+            # 当MSVC编译时 在 build_openblas 函数中调用$BUIL_INFO.install_path()函数会进入这个分支
             $v=$mingw_version
         }else{
+            # 当MSVC下且不是在 build_openblas 函数中调用本函数会进入这个分支,
+            # 此时返回的只是文件夹名称前缀部分
+            # 参见build.ps1 中 find_openblas 函数
             return "${prefix}_${HOST_OS}_gcc"
         }
         $c='gcc'+($v -replace '[^\w]','')
