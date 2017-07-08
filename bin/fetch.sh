@@ -253,12 +253,18 @@ modify_bzip2_1_0_5(){
 	echo "${FUNCNAME[0]}:修改$bzip2_cmake,删除 SHARED 参数"
 	sed -i -r 's/(^\s*ADD_LIBRARY\s*\(\s*bz2\s*)SHARED/#modified by guyadong,remove SHARED\n\1/g' $bzip2_cmake
 }
+# 修改 lmdb 代码,增加 CMakeLists.txt
+modify_lmdb(){
+	eval $(declare_project_local_vars $LMDB_PREFIX)
+	echo "${FUNCNAME[0]}:(复制修改的补丁文件)copy patch file to $SOURCE_ROOT/$folder/libraries/liblmdb"		
+	cp -Pr$VERBOSE_EXTRACT $PATCH_ROOT/$folder/CMakeLists.txt $SOURCE_ROOT/$folder/libraries/liblmdb
+}
 
 fetch_protobuf(){ fetch_from_github "protobuf" ; }
 fetch_gflags(){ fetch_from_github "gflags" ; }
 fetch_glog(){ fetch_from_github "glog" ; }
 fetch_leveldb(){ fetch_from_github "leveldb" ; }
-fetch_lmdb(){ fetch_from_github "lmdb" ; }
+fetch_lmdb(){ fetch_from_github "lmdb" ; modify_lmdb ; }
 fetch_snappy(){ fetch_from_github "snappy" ; modify_snappy ; }
 fetch_openblas(){ fetch_from_github "OpenBLAS" ; }
 fetch_ssd(){ fetch_ssd_zip ; modify_ssd; }

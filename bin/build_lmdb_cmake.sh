@@ -1,5 +1,5 @@
 #!/bin/bash
-# 编译 lmdb 源码脚本
+# cmake 编译 lmdb 源码脚本
 # author guyadong@gdface.net
 
 shell_folder=$(cd "$(dirname "$0")";pwd)
