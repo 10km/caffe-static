@@ -1,5 +1,5 @@
 #!/bin/bash
-# cmake ±àÒë lmdb Ô´Âë½Å±¾
+# cmake ç¼–è¯‘ lmdb æºç è„šæœ¬
 # author guyadong@gdface.net
 
 shell_folder=$(cd "$(dirname "$0")";pwd)
