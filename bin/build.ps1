@@ -27,6 +27,8 @@ param(
 [switch]$openblas_no_dynamic_arch,
 [switch]$openblas_no_use_thread,
 [int]$openblas_num_threads=24,
+[switch]$caffe_gpu,
+[string]$caffe_cudnn_root,
 [switch]$debug,
 [switch]$build_reserved,
 [switch]$help
@@ -883,6 +885,20 @@ function build_caffe_windows([PSObject]$project){
         echo $error_message
         exit -1
     }
+    if($caffe_gpu -and $BUILD_INFO.is_gcc()){
+        Write-Host '(CUDA 不支持MinGW编译)MinGW unsuppored compiler for CUDA'  -ForegroundColor Yellow
+        Write-Host 'see also http://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html#system-requirements'
+        exit -1
+    }
+    # GPU/CPU模式编译开关
+    $cpu_only=$(if($caffe_gpu){'OFF'}else{'ON'})
+    # 指定cuDNN安装位置
+    if($caffe_gpu -and $caffe_cudnn_root){
+        exit_if_not_exist $caffe_cudnn_root -type Container
+        $cudnn_root="-DCUDNN_ROOT=$caffe_cudnn_root"
+    }else{
+        $cudnn_root=''
+    }
     $BUILD_INFO.begin_build($null,$false,$project.root)
     # 指定 OpenBLAS 安装路径 参见 $caffe_source/cmake/Modules/FindOpenBLAS.cmake
     $env:OpenBLAS_HOME=$openblas_install_path
@@ -903,6 +919,7 @@ function build_caffe_windows([PSObject]$project){
     }else{
         $close_warning=''    
     }
+
     # MinGW编译时,指定使用静态库,参见 openblas_install_path/cmake/openblas/OpenBLASConfig.cmake
     $openblas_use_static=$(if($BUILD_INFO.is_gcc()){'-DOpenBlas_USE_STATIC=on'}else{''})
         
@@ -934,7 +951,8 @@ function build_caffe_windows([PSObject]$project){
 	    -DOpenCV_DIR=`"$opencv_cmake_dir`" 
         -Dprotobuf_MODULE_COMPATIBLE=on
         -DProtobuf_DIR=`"$protobuf_dir`"
-	    -DCPU_ONLY=ON 
+	    -DCPU_ONLY=$cpu_only
+        $cudnn_root
 	    -DBLAS=Open 
 	    -DBUILD_SHARED_LIBS=off 
 	    -DBUILD_docs=off 
@@ -1018,6 +1036,10 @@ function print_help(){
                     OpenBLAS编译选项,指定不使用多线程,默认使用多线程模式
     -openblas_num_threads 
                     OpenBLAS编译选项,多线程模式时最大线程数,如果不指定则定义为当前cpu的核心数
+    -caffe_gpu      编译GPU版本(CPU_ONLY=OFF)，默认编译CPU_ONLY版本,
+                    指定此选项时，需要系统安装CUDA
+    -caffe_cudnn_root
+                    指定cuDNN安装路径，对应 CUDNN_ROOT in cmake/Cuda.cmake,只在指定了-caffe_gpu时有效
     -debug          编译Debug版本,默认Release
     -build_reserved 编译安装后保存编译生成的工程文件及中间文件
     -h,-help        显示帮助信息
@@ -1066,6 +1088,10 @@ options:
                     OpenBLAS build option,set NUM_THREADS to number that you specify, define maximum number of threads.
                     by default,it's automatically detected and set be number of logical cores
                     For more detail,see also GotoBLAS_02QuickInstall.txt,Makefile.rule,USAGE.md in OpenBLAS source folder
+    -caffe_gpu      CPU_ONLY=OFF， default CPU_ONLY=ON,
+                    need CUDA support if selected the option
+    -caffe_cudnn_root
+                    set CUDNN_ROOT in cmake/Cuda.cmake,effective only when -caffe_gpu selected
     -debug          Debug building, default is Release
     -build_reserved reserve thd build folder while project building finished
 	-h,-help        print the message

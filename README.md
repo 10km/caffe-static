@@ -52,8 +52,6 @@ windows下编译的caffe 依赖库(MSVC编译)
 
 
 >	--没有提供python接口
->	
->	--CPU_ONLY模式
 
 
 #1.目录结构说明
