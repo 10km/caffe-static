@@ -807,7 +807,7 @@ function build_openblas(){
         # 删除安装路径
         rm `"$install_path`" -fr;
         #if [ ! `$? ];then exit -1;fi;
-        # 安装到 $install_path 指定的位置
+        # 安装到指定的位置 $install_path 
         $mingw_make install PREFIX=`"$install_path`" NO_LAPACKE=1 "
     $cmd=combine_multi_line "$msys2bash -l -c `"$bashcmd`" 2>&1"
     Write-Host "(OpenBLAS 编译中...)compiling OpenBLAS by MinGW $mingw_version ($mingw_bin)" -ForegroundColor Yellow
@@ -982,7 +982,9 @@ function print_help(){
 编译安装指定的项目,如果没有指定项目名称，则编译所有项目
     -names,-build_project_names
                     项目名称列表(逗号分隔,忽略大小写,无空格)
-                    可选的项目名称: $($all_project_names -join ',') 
+                    可选的项目名称: $($all_project_names -join ',')
+                    caffe_windows :官方caffe项目windows分支 https://github.com/BVLC/caffe.git branch:windows
+                    conner99_ssd  :conner99的ssd windows版本  https://github.com/conner99/caffe.git branch:ssd-microsoft 
     -custom,-custom_caffe_folder
                     指定编译的caffe项目文件夹
     -prefix,-custom_install_prefix
@@ -1010,8 +1012,8 @@ function print_help(){
                     DYNAMIC_ARCH是指OpenBLAS 库中同时包含支持多种 cpu 核心架构的代码,
                     OpenBLAS可以在运行时自动切换到合适的架构代码(编译耗时较长)
                     指定此选项时,则会自动检测当前 cpu ,编译出适合当前 cpu 架构的库(编译时间较短),
-                    在其他不同架构的cpu上运行会存在指令集兼容性问题
-                    以上关于 OpenBLAS 的选项更详细的说明参见 OpenBLAS 源码文件夹下的 GotoBLAS_02QuickInstall.txt,Makefile.rule,USAGE.md等文件
+                    在其他不同架构的cpu上运行可能会存在指令集兼容性问题
+                    关于 OpenBLAS 的选项更详细的说明参见 OpenBLAS 源码文件夹下的 GotoBLAS_02QuickInstall.txt,Makefile.rule,USAGE.md等文件
     -openblas_no_use_thread 
                     OpenBLAS编译选项,指定不使用多线程,默认使用多线程模式
     -openblas_num_threads 
@@ -1028,6 +1030,8 @@ all projects builded if no name argument
     -names,-build_project_names
                     prject names(split by comma,ignore case,without blank)
                     optional project names: $($all_project_names -join ',')
+                    caffe_windows :BVLC/caffe(windows) branch https://github.com/BVLC/caffe.git branch:windows
+                    conner99_ssd  :conner99/ssd(windows)  https://github.com/conner99/caffe branch:ssd-microsoft 
     -custom,-custom_caffe_folder
                     caffe folder for building
     -prefix,-custom_install_prefix

@@ -230,12 +230,13 @@ $SSD_INFO= create_project_info @{
     version="ssd"
     owner="weiliu89"	
 }
-#https://github.com/conner99/caffe.git brance:ssd-microsoft 
+# https://github.com/conner99/caffe.git branch:ssd-microsoft 
 $CONNER99_SSD_INFO= create_project_info @{
 	prefix="caffe"
     version="ssd-microsoft"
     owner="conner99"	
 }
+# https://github.com/BVLC/caffe.git branch:windows
 $CAFFE_WINDOWS_INFO= create_project_info @{
 	prefix="caffe"
     version="windows"
