@@ -102,6 +102,7 @@ function modify_gtest_use_own_tr1_tuple($caffe_root){
 }
 
 # 修改 set_caffe_link 加入 MSVC 支持
+# 这部分代码修改复制自 BVLC/caffe windows branch 对应的 cmake/Targets.cmake中的set_caffe_link macro
 function modify_caffe_set_caffe_link($caffe_root){
     args_not_null_empty_undefined caffe_root
     $target_cmake=[io.path]::Combine($caffe_root,'cmake','Targets.cmake')
@@ -173,7 +174,7 @@ function modify_protobuf_cmake($caffe_root){
     $content.Replace($find_package_block[0],($find_package_block[1..3] -join "`n")) -split "`n" | Out-File $protobuf_cmake -Encoding ascii -Force
     $find_package_block[2]
 }
-# 修复 VS2013编译时， boost 
+# 修复 VS2013编译时 boost 1.60 以上版本报错问题 
 function support_boost_vs2013($caffe_root){    
     args_not_null_empty_undefined caffe_root
     if($skip_fix_boost_vs2013){
@@ -205,7 +206,7 @@ $patch_code
         call_stack
         exit -1
     }
-    regex_replace_file -text_file $dependencies_cmake `
+    regex_replace_file  -text_file $dependencies_cmake `
                         -regex $regex_boost_block `
                         -replace "`$1`$2#modified by guyadong`n$patch_code`$3" `
                         -msg "(增加对VS2103下boost编译支持代码)add BOOST_NO_CXX11_TEMPLATE_ALIASES definition in $dependencies_cmake" `
@@ -252,6 +253,11 @@ function modify_find_hdf5($caffe_root){
     $find_package_block[2]
 }
 # 修复 /src/caffe/CMakeLists.txt /tools/CMakeLists.txt中可能存在的问题
+# windows下,在target_link_libraries(caffe ${Caffe_LINKER_LIBS})语句中如果没有指定 PUBLIC 属性,
+# caffe target的依赖库列表(${Caffe_LINKER_LIBS})无法通过caffe 的 INTERFACE_LINK_LIBRARIES property 传递给tools/CMakeLists.txt中的target，
+# 会导致所有executable target连接时找不到${Caffe_LINKER_LIBS}中的所有库
+# 参见 https://cmake.org/cmake/help/v3.8/command/target_link_libraries.html
+#      https://cmake.org/cmake/help/v3.8/prop_tgt/INTERFACE_LINK_LIBRARIES.html
 function modify_src_cmake_list($caffe_root){
     args_not_null_empty_undefined caffe_root
     $src_caffe_cmake= [io.path]::combine( $caffe_root,'src','caffe','CMakeLists.txt')
@@ -338,20 +344,26 @@ function modify_for_mingw($caffe_root){
 function modify_cmakelists_root_for_windows($caffe_root){
     args_not_null_empty_undefined caffe_root
     $cmakelists_root=Join-Path $caffe_root -ChildPath CMakeLists.txt
+    # Windows 预编译库下载是BVLC/caffe windows分支提供的功能，但在这里用不到了
+    # 因为所有的依赖库我们都自己编译，所以当然不再需要预下载依赖库
     regex_replace_file  -text_file $cmakelists_root `
                         -regex '^\s*include\s*\(\s*cmake[/\\]WindowsDownloadPrebuiltDependencies\.cmake\s*\)' `
                         -replace "#deleted by guyadong,disable download prebuilt dependencies`n#`$0" `
                         -msg "(禁止 Windows 预编译库下载) disable download prebuilt dependencies ($cmakelists_root)"  
-
-    regex_replace_file  -text_file $cmakelists_root `
-                        -regex '(^\s*caffe_option\s*\(\s*protobuf_MODULE_COMPATIBLE\s+.*\s+)(?:ON|OFF)[^)]*\)\s*(?:#.*)?$' `
-                        -replace "`$1ON)#modify by guyadong,always set ON" `
-                        -msg "set protobuf_MODULE_COMPATIBLE always ON ($cmakelists_root)"  `
-
+    # 同上道理
     regex_replace_file  -text_file $cmakelists_root `
                         -regex '(^\s*caffe_option\s*\(\s*COPY_PREREQUISITES\s+.*\s+)(?:ON|OFF)[^)]*\)\s*(?:#.*)?$' `
                         -replace "`$1OFF)#modify by guyadong,always set OFF" `
                         -msg "set COPY_PREREQUISITES always OFF ($cmakelists_root)"  `
+
+    # protobuf新的版本提供的cmake脚本都采用imported target方式提供library信息了(至少本项目中用到的3.3.1是这样)，如果
+    # 如果不将 protobuf_MODULE_COMPATIBLE 置为 ON,设置为兼容老版本, cmake/ProtoBuf.cmake中的find_package( Protobuf )就会失败
+    # 参见　$protobuf_install_path/cmake/protobuf-config.cmake
+    # 关于 imported target 参见 https://cmake.org/cmake/help/v3.8/manual/cmake-buildsystem.7.html#imported-targets
+    regex_replace_file  -text_file $cmakelists_root `
+                        -regex '(^\s*caffe_option\s*\(\s*protobuf_MODULE_COMPATIBLE\s+.*\s+)(?:ON|OFF)[^)]*\)\s*(?:#.*)?$' `
+                        -replace "`$1ON)#modify by guyadong,always set ON" `
+                        -msg "set protobuf_MODULE_COMPATIBLE always ON ($cmakelists_root)"  
 
 }
 # 基于 caffe 项目代码通用补丁函数, 
