@@ -76,7 +76,7 @@ author: guyadong@gdface.net 2017/6
 
 #2.运行环境要求
 
-## linux ##
+##linux 
 
 必须安装gcc编译器(g++ &＆ gcc)
 
@@ -84,7 +84,7 @@ author: guyadong@gdface.net 2017/6
 
 可以通过 BUILD_COMPILER_PATH 指定编译器位置(参见bin/build_vars中 BUILD_COMPILER_PATH 的定义 )
 
-## windows ##
+##windows 
 
 Windows下需要 PowerShell 执行脚本，需要 PowerShell 4.0或5.0 支持(目前在PowerShell 6.0版本上还有兼容性问题，暂不支持)。
 
@@ -93,7 +93,7 @@ Win7 内置 PowerShell 2.0，需要升级到4.0。关于 PowerShell 4.0 下载�
 
 Win10内置 PowerShell 5.0，不需要升级
 
-**如何查看 PowerShell 版本号?**
+##如何查看 PowerShell 版本号?
 
 在PowerShell (1.0以上版本)中输入 如下命令
 
@@ -111,6 +111,16 @@ Win10内置 PowerShell 5.0，不需要升级
 	PSCompatibleVersions           {1.0, 2.0, 3.0, 4.0}                                                                                                                                                                                           
 	PSRemotingProtocolVersion      2.2              
 
+##第一次使用powershell
+
+Windows默认是不允许执行PowserShell脚本执行，所以第一次执行 PowerShell时需要对Windows策略进行修改：
+
+关于如何修改Windows设置，参见
+ 
+[《POWERSHELL脚本执行权限》](http://www.cnblogs.com/BensonHe/archive/2012/09/02/2668010.html)
+
+[《组策略中哪儿可以设置powershell 启用脚本执行权限》](https://zhidao.baidu.com/question/1885894711261585828.html)
+
 ##编译器
 
 支持Visual Studio 2013,Visual Studio 2015，MinGW.
@@ -121,14 +131,14 @@ Win10内置 PowerShell 5.0，不需要升级
     
 #3.开始
 
-## linux ##
+##linux
 执行 bin/build.sh 即可完成下载、编译所有代码。
 
 第一次执行因为要下载caffe及所有依赖库的源码，所以会耗时较长，请耐心等待。
 
 如果要编译自己的caffe项目代码，请参照 build_ssd.sh 脚本修改
 
-## windows ##
+##windows
 
 在 PowerShell 中执行fetch.ps1 下载解压所有软件包和工具包,第一次执行时要下载几百MB数据，可能耗时较长 
 
@@ -140,13 +150,13 @@ Win10内置 PowerShell 5.0，不需要升级
 
 ##编译自己的caffe windows代码
 
-本项目windows脚本已经内置了下面两套 caffe 源码的静态编译(运行./build -help 查看帮助信息)：
+本项目windows脚本已经内置了下面两套 caffe 源码的静态编译：
 
 caffe_windows :官方caffe项目windows分支 https://github.com/BVLC/caffe.git branch:windows
 
 conner99_ssd  :conner99的ssd windows版本  https://github.com/conner99/caffe.git branch:ssd-microsoft
 
-如果要对其他的caffe项目进行编译，可以在执行 ./build.ps1时使用 -custom_caffe_folder 选项指定要编译的caffe项目文件夹
+如果要对其他的caffe项目进行编译，可以在执行 ./build.ps1时使用 -custom_caffe_folder 选项指定要编译的caffe项目文件夹(运行./build -help 查看帮助信息)
 
 在这个过程中会对指定的caffe项目文件夹中的cmake脚本进行自动修改。
 
