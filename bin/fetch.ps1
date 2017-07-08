@@ -342,7 +342,7 @@ function fetch_bzip2(){ fetch_bzip2_1_0_5 ; modify_bzip2_1_0_5 }
 function print_help(){
     if($(chcp ) -match '\.*936$'){
 	    echo "用法: $my_name [-names] [项目名称列表,...] [可选项...] 
-下载并解压指定的项目，如果没有指定项目名称，则下载解压所有项目
+下载并解压指定的项目，如果没有指定项目名称，则下载解压所有项目,如果项目已经存在则先删除。
     -n,-names       项目名称列表(逗号分隔,忽略大小写,无空格)
                     可选的项目名称: $($all_names -join ',')
 选项:
@@ -360,7 +360,7 @@ function print_help(){
 "
     }else{
         echo "usage: $my_name [-names] [PROJECT_NAME,...] [options...] 
-download and extract projects specified by project name,
+download and extract projects specified by project name,remove it if project exists already
 all projects fetched without argument
     -n,-names       prject names(split by comma,ignore case,without blank)
                     optional project names: $($all_names -join ',') 
