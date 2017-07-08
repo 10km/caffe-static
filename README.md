@@ -50,12 +50,12 @@ author: guyadong@gdface.net 2017/6
 	│   ├── patchwin.ps1
 	│   ├── test1.ps1
 	│   └── unpack.ps1
-	├── package 所有项目压缩包位置
+	├── package 所有项目压缩包位置(自动创建)
 	├── patch 存放对应项目的补丁文件
 	├── README.md
-	├── release 所有项目编译后的安装位置
-	├── source 解压后的源码位置
-	└── tools 编译过程中用的工具(cmake,7z,jom,mingw32,ming64,msys2)
+	├── release 所有项目编译后的安装位置(自动创建)
+	├── source 解压后的源码位置(自动创建)
+	└── tools 编译过程中用的工具(cmake,7z,jom,mingw32,ming64,msys2)(自动创建)
 
 ## bash shell(for linux): ##
 
