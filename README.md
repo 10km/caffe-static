@@ -23,11 +23,30 @@ linux 下编译的caffe 依赖库
 
 windows下编译的caffe 依赖库(MinGW编译)
 
-![windows下编译的caffe 依赖库(MinGW编译)](http://img.blog.csdn.net/20170708163426032?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvMTBrbQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+	$ ldd /d/caffe-static/release/BVLC_caffe_windows_gcc540_x86/bin/caffe.exe
+	        ntdll.dll => /c/Windows/SYSTEM32/ntdll.dll (0x779d0000)
+	        ??? => ??? (0x77bb0000)
+	        wow64.dll => /c/Windows/SYSTEM32/wow64.dll (0x74f60000)
+	        wow64win.dll => /c/Windows/SYSTEM32/wow64win.dll (0x74f00000)
+	        wow64cpu.dll => /c/Windows/SYSTEM32/wow64cpu.dll (0x74ef0000)
 
 windows下编译的caffe 依赖库(MSVC编译)
 
-![windows下编译的caffe 依赖库(MSVC编译)](http://img.blog.csdn.net/20170708163440411?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvMTBrbQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+	$ ldd /d/caffe-static/release/BVLC_caffe_windows_vc140_x86_64_mt/bin/caffe.exe
+	        ntdll.dll => /c/Windows/SYSTEM32/ntdll.dll (0x779d0000)
+	        kernel32.dll => /c/Windows/system32/kernel32.dll (0x77770000)
+	        KERNELBASE.dll => /c/Windows/system32/KERNELBASE.dll (0x7fefd670000)
+	        SHLWAPI.dll => /c/Windows/system32/SHLWAPI.dll (0x7fefe310000)
+	        GDI32.dll => /c/Windows/system32/GDI32.dll (0x7fefdf80000)
+	        USER32.dll => /c/Windows/system32/USER32.dll (0x77670000)
+	        LPK.dll => /c/Windows/system32/LPK.dll (0x7fefdf70000)
+	        USP10.dll => /c/Windows/system32/USP10.dll (0x7fefd8f0000)
+	        msvcrt.dll => /c/Windows/system32/msvcrt.dll (0x7fefdc30000)
+	        libopenblas.dll => /d/caffe-static/release/BVLC_caffe_windows_vc140_x86_64_mt/bin/libopenblas.dll (0x6d7c0000)
+	        ADVAPI32.dll => /c/Windows/system32/ADVAPI32.dll (0x7feff8d0000)
+	        sechost.dll => /c/Windows/SYSTEM32/sechost.dll (0x7fefdc10000)
+	        RPCRT4.dll => /c/Windows/system32/RPCRT4.dll (0x7fefdab0000)
+
 
 本项目编译出的caffe有如下限制：
 
