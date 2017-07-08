@@ -8,6 +8,7 @@ if(!$BUILD_VARS_INCLUDED){
 
 # 在文本文件中用正则表达式搜索替换字符串并将修改后的内容回写到文件中,
 # 并显示修改前后内容比较
+# $join 是否将 Get-Content获取的文本内容(字符串数组) 以 \n 连成一个 string 用于正则表达式多行匹配
 function regex_replace_file($text_file,$regex,$replace,$msg,[switch]$join){
     args_not_null_empty_undefined text_file regex 
     exit_if_not_exist $text_file -type Leaf 
@@ -35,14 +36,6 @@ function regex_replace_file($text_file,$regex,$replace,$msg,[switch]$join){
             $_ -replace $regex,$replace
         }
     }
-}
-function disable_download_prebuilt_dependencies($cmakelists_root){
-    args_not_null_empty_undefined cmakelists_root
-    exit_if_not_exist $cmakelists_root -type Leaf 
-    regex_replace_file -text_file $cmakelists_root `
-                       -regex '(^\s*include\s*\(\s*cmake/WindowsDownloadPrebuiltDependencies\.cmake\s*\))' `
-                       -replace "$sign#`$1" `
-                       -msg "(禁止 Windows 预编译库下载) disable download prebuilt dependencies ($cmakelists_root)" 
 }
 
 $regex_gtest_definitions="\n\s*if\s*\(\s*NOT\s+MSVC\s*\)(?:(\s|\s*#.*\n))*target_compile_definitions\s*\(\s*gtest\s+PUBLIC\s+-DGTEST_USE_OWN_TR1_TUPLE\s*\)(?:(\s|\s*#.*\n))*endif\s*\(\s*(NOT\s+MSVC)?\s*\)"
@@ -142,6 +135,11 @@ function modify_caffe_set_caffe_link($caffe_root){
     $Matches[0]
 }
 # 修改 cmake/ProtoBuf.cmake
+# 主要的修改原则是强制用 NO_MODULE 方式执行 find_package (Protobuf)
+# 因为本项目的所有依赖库都是自己编译的(包括 protobuf),所以find_package (Protobuf)时不需要满世界找,
+# 强制在Protobuf_DIR指定的文件夹下找(参见 build.ps1 build_caffe 函数)
+# 否则如果系统中装了多个protobuf时,天知道它会找到哪一个
+# 关于 NO_MODULE 的作用,参见 https://cmake.org/cmake/help/v3.8/command/find_package.html
 function modify_protobuf_cmake($caffe_root){
     args_not_null_empty_undefined caffe_root
     $protobuf_cmake=[io.path]::Combine($caffe_root,'cmake','ProtoBuf.cmake')
