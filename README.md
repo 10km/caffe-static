@@ -10,13 +10,31 @@ author: guyadong@gdface.net 2017/6
 
 目前在centos6.5/ubuntu16/win7/win10上测试通过,windows上VS2013,VS2015,MinGW 5.2.0编译通过
 
+linux 下编译的caffe 依赖库
+
+	[hadoop@t2-centos6 caffe-static]$ ldd release/caffe-ssd_linux_x86_64/bin/caffe 
+		linux-vdso.so.1 =>  (0x00007fff46197000)
+		libpthread.so.0 => /lib64/libpthread.so.0 (0x0000003c24600000)
+		librt.so.1 => /lib64/librt.so.1 (0x0000003c24e00000)
+		libdl.so.2 => /lib64/libdl.so.2 (0x0000003c24a00000)
+		libm.so.6 => /lib64/libm.so.6 (0x0000003c25200000)
+		libc.so.6 => /lib64/libc.so.6 (0x0000003c24200000)
+		/lib64/ld-linux-x86-64.so.2 (0x0000003c23e00000)
+
+windows下编译的caffe 依赖库(MinGW编译)
+
+![windows下编译的caffe 依赖库(MinGW编译)](http://img.blog.csdn.net/20170708163426032?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvMTBrbQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
+
+windows下编译的caffe 依赖库(MSVC编译)
+
+![windows下编译的caffe 依赖库(MSVC编译)](http://img.blog.csdn.net/20170708163440411?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvMTBrbQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast)
 
 本项目编译出的caffe有如下限制：
 
 
-	--没有提供python接口
-
-	--CPU_ONLY模式
+>	--没有提供python接口
+>	
+>	--CPU_ONLY模式
 
 
 #1.目录结构说明
