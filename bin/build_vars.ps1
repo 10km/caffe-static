@@ -348,3 +348,10 @@ Add-Member -InputObject $JOM_INFO -NotePropertyName exe -NotePropertyValue (Join
 #$UNPACK_TOOL="C:\Program Files\7-Zip\7z.exe"
 #$UNPACK_TOOL="C:\Program Files\2345Soft\HaoZip\HaoZipC.exe"
 $UNPACK_TOOL=get_unpack_cmdexe
+
+# 检查 PowerShell 版本,要求必须4.0或5.0版本
+if(!$PSVersionTable -or $PSVersionTable.PSVersion.Major -lt 4){
+    throw "(PowerShell 版本必须>4.0)required version for PowerShell must >=4.0,please upgrade your PowerShell to 4.0 "
+}elseif($PSVersionTable.PSVersion.Major  -ge 6){
+    throw "(本程序暂不支持在PowerShell 6.0以上版本运行) unsupported PowerShell version >=6.0"
+}
