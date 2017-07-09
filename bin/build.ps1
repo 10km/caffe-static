@@ -29,6 +29,7 @@ param(
 [int]$openblas_num_threads=24,
 [switch]$caffe_gpu,
 [string]$caffe_cudnn_root,
+[switch]$caffe_use_dynamic_openblas,
 [switch]$debug,
 [switch]$build_reserved,
 [switch]$help
@@ -921,7 +922,7 @@ function build_caffe_windows([PSObject]$project){
     }
 
     # MinGW编译时,指定使用静态库,参见 openblas_install_path/cmake/openblas/OpenBLASConfig.cmake
-    $openblas_use_static=$(if($BUILD_INFO.is_gcc()){'-DOpenBlas_USE_STATIC=on'}else{''})
+    $openblas_use_static=$(if($BUILD_INFO.is_gcc() -and !$caffe_use_dynamic_openblas){'-DOpenBlas_USE_STATIC=on'}else{''})
         
     # msvc和mingw编译出来的protobuf版本install文件结构不完全相同
     # $protobuf_dir 定义 protobuf-config.cmake所在文件夹 
@@ -1040,6 +1041,8 @@ function print_help(){
                     指定此选项时，需要系统安装CUDA
     -caffe_cudnn_root
                     指定cuDNN安装路径，对应 CUDNN_ROOT in cmake/Cuda.cmake,只在指定了-caffe_gpu时有效
+    -caffe_use_dynamic_openblas
+                    指定编译 caffe 时使用 OpenBLAS 动态库,MingGW编译时有效,默认MinGW编译时使用 OpenBLAS 静态库
     -debug          编译Debug版本,默认Release
     -build_reserved 编译安装后保存编译生成的工程文件及中间文件
     -h,-help        显示帮助信息
@@ -1092,6 +1095,9 @@ options:
                     need CUDA support if selected the option
     -caffe_cudnn_root
                     set CUDNN_ROOT in cmake/Cuda.cmake,effective only when -caffe_gpu selected
+    -caffe_use_dynamic_openblas
+                    use OpenBLAS dynamic library when build caffe project,effective only when MinGW,
+                    by default OpenBLAS static library used when MinGW
     -debug          Debug building, default is Release
     -build_reserved reserve thd build folder while project building finished
 	-h,-help        print the message
