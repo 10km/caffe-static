@@ -180,6 +180,12 @@ function support_boost_vs2013($caffe_root){
     }
     $dependencies_cmake= [io.path]::combine( $caffe_root,'cmake','Dependencies.cmake')
     exit_if_not_exist $dependencies_cmake -type Leaf 
+    <# 用正则表达式判断 是否有 
+        list(APPEND Caffe_DEFINITIONS PUBLIC -DBOOST_NO_CXX11_TEMPLATE_ALIASES)
+        或
+        add_definitions(-DBOOST_NO_CXX11_TEMPLATE_ALIASES)
+        这样的语句,如果有了,说明脚本中已经对针对VS2013下编译boost做了判断,如果没有就添加判断语句
+    #>
     $regex_code='\s*if\s*\(\s*(?:(?:DEFINED\s+)?)MSVC\s+AND\s+CMAKE_CXX_COMPILER_VERSION VERSION_LESS\s+18.0.40629.0\s*\)((?:(?:\n\s*|\s*#.*\n))*)\s*(?:add_definitions|list)\s*\(.*-DBOOST_NO_CXX11_TEMPLATE_ALIASES.*\)\s*endif\(.*\)'
     $content=(Get-Content $dependencies_cmake) -join "`n"
     if( $content -match $regex_code){
