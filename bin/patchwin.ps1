@@ -180,7 +180,7 @@ function support_boost_vs2013($caffe_root){
     }
     $dependencies_cmake= [io.path]::combine( $caffe_root,'cmake','Dependencies.cmake')
     exit_if_not_exist $dependencies_cmake -type Leaf 
-    $regex_code='\s*if\s*\(\s*(?:(?:DEFINED\s+)?)MSVC\s+AND\s+CMAKE_CXX_COMPILER_VERSION VERSION_LESS\s+18.0.40629.0\s*\)((?:(?:\n\s*|\s*#.*\n))*)\s*add_definitions\s*\(\s*-DBOOST_NO_CXX11_TEMPLATE_ALIASES\s*\)\s*endif\(.*\)'
+    $regex_code='\s*if\s*\(\s*(?:(?:DEFINED\s+)?)MSVC\s+AND\s+CMAKE_CXX_COMPILER_VERSION VERSION_LESS\s+18.0.40629.0\s*\)((?:(?:\n\s*|\s*#.*\n))*)\s*(?:add_definitions|list)\s*\(.*-DBOOST_NO_CXX11_TEMPLATE_ALIASES.*\)\s*endif\(.*\)'
     $content=(Get-Content $dependencies_cmake) -join "`n"
     if( $content -match $regex_code){
         Write-Host "(无需修改) BOOST_NO_CXX11_TEMPLATE_ALIASES definition is present, $dependencies_cmake"
@@ -364,6 +364,27 @@ function modify_cmakelists_root_for_windows($caffe_root){
                         -msg "set protobuf_MODULE_COMPATIBLE always ON ($cmakelists_root)"  
 
 }
+#  Dependencies.cmake 增加依赖的动态库安装代码
+function append_dependencies_install($caffe_root){
+    args_not_null_empty_undefined caffe_root
+    $dependencies_cmake= [io.path]::combine( $caffe_root,'cmake','Dependencies.cmake')
+    exit_if_not_exist $dependencies_cmake -type Leaf 
+    $code='
+# ---[ install Dependencies
+# added by guyadong,copy OpenBLAS dynamic library to bin if dynamic link OpenBLAS
+IF( OpenBLAS_LIBRARIES_BIN )
+	message(STATUS "install ${OpenBLAS_LIBRARIES_BIN} to bin")
+	install(PROGRAMS ${OpenBLAS_LIBRARIES_BIN} DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif(OpenBLAS_LIBRARIES_BIN)'
+    $content=Get-Content $dependencies_cmake
+    if(!($content -match '^\s*#\s*---\s*\[\s*install\s+Dependencies.*$')){
+        Write-Host "(添加OpenBLAS动态库安装代码)install OpenBLAS dynamic library $dependencies_cmake" -ForegroundColor Yellow
+        # 添加到文件末尾
+        $content+$code | Out-File $dependencies_cmake  -Encoding ascii -Force 
+        exit_on_error
+        $code
+    }
+}
 # 基于 caffe 项目代码通用补丁函数, 
 # 所有 caffe 系列项目fetch后 应先调用此函数做修补
 # $caffe_root caffe 源码根目录
@@ -375,6 +396,7 @@ function modify_caffe_folder([string]$caffe_root,$patch_root=$PATCH_ROOT){
     modify_cmakelists_root_for_windows $caffe_root
     modify_src_cmake_list $caffe_root
     modify_find_hdf5 $caffe_root
+    append_dependencies_install $caffe_root
     support_boost_vs2013 $caffe_root
     modify_protobuf_cmake $caffe_root
     modify_caffe_set_caffe_link $caffe_root
