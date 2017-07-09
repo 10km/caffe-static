@@ -98,9 +98,13 @@ endif
 	@echo Generating $(OPENBLAS_CMAKE_CONFIG) in $(DESTDIR)$(OPENBLAS_CMAKE_DIR)	
 	@echo "SET(OpenBLAS_VERSION \"${VERSION}\")" > $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)	
 	@echo "# modified by guyadong,use relative path instead of absolute path" >> $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)	
+	@echo "# Compute the installation prefix relative to this file." >> $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)	
 	@echo "get_filename_component(_IMPORT_PREFIX \"\$${CMAKE_CURRENT_LIST_DIR}\" PATH)" >> $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)	
 	@echo "get_filename_component(_IMPORT_PREFIX \"\$${_IMPORT_PREFIX}\" PATH)" >> $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)	
 	@echo "get_filename_component(_IMPORT_PREFIX \"\$${_IMPORT_PREFIX}\" PATH)" >> $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)	
+	@echo "if(_IMPORT_PREFIX STREQUAL \"/\")" >> $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)
+	@echo "	set(_IMPORT_PREFIX \"\")" >> $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)
+	@echo "endif()" >> $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)
 	@echo "SET(OpenBLAS_INCLUDE_DIRS \$${_IMPORT_PREFIX}/include)" >> $(DESTDIR)$(OPENBLAS_CMAKE_DIR)/$(OPENBLAS_CMAKE_CONFIG)
 
 ifndef NO_SHARED
