@@ -259,6 +259,12 @@ modify_lmdb(){
 	echo "${FUNCNAME[0]}:(复制修改的补丁文件)copy patch file to $SOURCE_ROOT/$folder/libraries/liblmdb"		
 	cp -Pr$VERBOSE_EXTRACT $PATCH_ROOT/$folder/CMakeLists.txt $SOURCE_ROOT/$folder/libraries/liblmdb
 }
+# 修改 OpenBLAS 代码, 更新 Makefile.install 中生成 OpenBLASConfig.cmake 部分的代码
+modify_openblas(){
+	eval $(declare_project_local_vars $OPENBLAS_PREFIX)
+	echo "${FUNCNAME[0]}:(复制修改的补丁文件)copy patch file to $SOURCE_ROOT/$folder"		
+	cp -Pr$VERBOSE_EXTRACT $PATCH_ROOT/$folder/Makefile.install $SOURCE_ROOT/$folder
+}
 
 fetch_protobuf(){ fetch_from_github "protobuf" ; }
 fetch_gflags(){ fetch_from_github "gflags" ; }
@@ -266,7 +272,7 @@ fetch_glog(){ fetch_from_github "glog" ; }
 fetch_leveldb(){ fetch_from_github "leveldb" ; }
 fetch_lmdb(){ fetch_from_github "lmdb" ; modify_lmdb ; }
 fetch_snappy(){ fetch_from_github "snappy" ; modify_snappy ; }
-fetch_openblas(){ fetch_from_github "OpenBLAS" ; }
+fetch_openblas(){ fetch_from_github "OpenBLAS" ; modify_openblas ; }
 fetch_ssd(){ fetch_ssd_zip ; modify_ssd; }
 fetch_opencv(){ fetch_from_github "opencv" ; }
 fetch_bzip2(){ fetch_bzip2_1_0_5 ; }
