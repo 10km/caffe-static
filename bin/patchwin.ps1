@@ -372,6 +372,7 @@ function append_dependencies_install($caffe_root){
     $code='
 # ---[ install Dependencies
 # added by guyadong,copy OpenBLAS dynamic library to bin if dynamic link OpenBLAS
+# see also $openblas_install_path/lib/cmake/openblas/OpenBLASConfig.cmake
 IF( OpenBLAS_LIBRARIES_BIN )
 	message(STATUS "install ${OpenBLAS_LIBRARIES_BIN} to bin")
 	install(PROGRAMS ${OpenBLAS_LIBRARIES_BIN} DESTINATION ${CMAKE_INSTALL_BINDIR})
