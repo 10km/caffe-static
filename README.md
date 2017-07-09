@@ -160,7 +160,9 @@ Windows默认是不允许执行PowserShell脚本执行，所以第一次执行 P
 
 支持Visual Studio 2013,Visual Studio 2015，MinGW.
 
-执行 build.ps1时如果没有用 -compiler 指定编译器，则脚本会以vs2013 vs2015 gcc的优先顺序自动侦测系统中的编译器，选择第一个找到的编译器，参见 build.ps1 中init_build_info函数
+如果没有安装上述任何一种编译器，脚本会用自带的mingw32或mingw64编译器编译
+
+执行 build.ps1时如果没有用 -compiler 指定编译器，则脚本会以vs2013 vs2015 gcc的优先顺序自动侦测系统中的编译器，选择第一个找到的编译器，参见 [build.ps1](bin/build.ps1) 中 init_build_info 函数
 
 如果你的Windows系统没有安装任何编译器，脚本会用自带的MinGW编译进行编译
     
