@@ -1,5 +1,3 @@
-author: guyadong@gdface.net 2017/6
-
 #0.who am i?
 
 在caffe应用到工程实现时，为了方便系统安装，需要尽可能减少软件的依赖库。
@@ -209,7 +207,7 @@ caffe-static is released under the [BSD 2-Clause license](LICENSE).
 
 
     @article{10km,
-      Author = {Gu,YaDong},
+      Author = {Gu,YaDong guyadong@gdface.net},
       Title = {caffe-static: static building tool for caffe},
       Year = {2017}
     }
