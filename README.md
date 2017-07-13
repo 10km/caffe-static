@@ -1,4 +1,4 @@
-#0.who am i?
+# 0. who am i?
 
 在caffe应用到工程实现时，为了方便系统安装，需要尽可能减少软件的依赖库。
 
@@ -52,7 +52,7 @@ windows下编译的caffe 依赖库(MSVC编译)
 >	--没有提供python接口
 
 
-#1.目录结构说明
+# 1. 目录结构说明
 
 目录结构如下：
 	
@@ -107,7 +107,7 @@ windows下编译的caffe 依赖库(MSVC编译)
 
 
 
-#2.运行环境要求
+# 2.运行环境要求
 
 ##linux 
 
@@ -164,7 +164,7 @@ Windows默认是不允许执行PowserShell脚本执行，所以第一次执行 P
 
 如果你的Windows系统没有安装任何编译器，脚本会用自带的MinGW编译进行编译
     
-#3.开始
+# 3.开始
 
 ##linux
 执行 bin/build.sh 即可完成下载、编译所有代码。
@@ -211,13 +211,3 @@ caffe-static is released under the [BSD 2-Clause license](LICENSE).
       Title = {caffe-static: static building tool for caffe},
       Year = {2017}
     }
-
- 
-
-
-
-
-
-
-
-
