@@ -205,7 +205,7 @@ conner99_ssd  :conner99的ssd windows版本  https://github.com/conner99/caffe.g
 
 ## License and Citation
 
-caffe-static is released under the [BSD 2-Clause license](master/LICENSE).
+caffe-static is released under the [BSD 2-Clause license](LICENSE).
 
 
     @article{10km,
