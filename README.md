@@ -1,5 +1,3 @@
-author: guyadong@gdface.net 2017/6
-
 #0.who am i?
 
 在caffe应用到工程实现时，为了方便系统安装，需要尽可能减少软件的依赖库。
@@ -203,7 +201,16 @@ conner99_ssd  :conner99的ssd windows版本  https://github.com/conner99/caffe.g
 
 本项目只是一个整合编译工具，并不负责将只能能linux下编译的代码修改为可以windows下编译的代码。使用-custom_caffe_folder选项指定要编译的caffe项目文件夹时，用户自己要确保这套代码在windows是可编译的。
 
+## License and Citation
 
+caffe-static is released under the [BSD 2-Clause license](LICENSE).
+
+
+    @article{10km,
+      Author = {Gu,YaDong guyadong@gdface.net},
+      Title = {caffe-static: static building tool for caffe},
+      Year = {2017}
+    }
 
  
 
