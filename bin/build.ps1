@@ -639,8 +639,6 @@ function build_opencv(){
     $BUILD_INFO.begin_build()
     if($BUILD_INFO.is_msvc()){
         $build_with_static_crt="-DBUILD_WITH_STATIC_CRT=$(if($BUILD_INFO.msvc_shared_runtime){'off'}else{'on'})"
-    }elseif($BUILD_INFO.is_gcc()){
-        $build_fat_java_lib='-DBUILD_FAT_JAVA_LIB=off'
     }
     if($BUILD_INFO.is_msvc()){
         # MSVC ¹Ø±Õ±àÒë¾¯¸æ
@@ -651,7 +649,6 @@ function build_opencv(){
 	#	-DBZIP2_LIBRARIES=$BZIP2_INSTALL_PATH/lib/libbz2.a 
     $cmd=combine_multi_line "$($CMAKE_INFO.exe) .. $($BUILD_INFO.make_cmake_vars_define()) -DCMAKE_INSTALL_PREFIX=""$install_path"" 
             $build_with_static_crt
-            $build_fat_java_lib
 			-DBUILD_DOCS=off 
 			-DBUILD_SHARED_LIBS=off 
 			-DBUILD_PACKAGE=on 
