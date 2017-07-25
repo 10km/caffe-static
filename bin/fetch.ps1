@@ -160,7 +160,7 @@ function fetch_boost(){
 # обть hdf5
 function fetch_hdf5(){
     $package_prefix="CMake-"+$HDF5_INFO.folder
-    $uri='https://support.hdfgroup.org/ftp/HDF5/releases',$HDF5_INFO.folder,'src',($package_prefix+$HDF5_INFO.package_suffix) -join '/'
+    $uri='https://support.hdfgroup.org/ftp/HDF5/releases',$HDF5_INFO.folder.Substring(0,$HDF5_INFO.folder.LastIndexOf('.')),$HDF5_INFO.folder,'src',($package_prefix+$HDF5_INFO.package_suffix) -join '/'
     download_and_extract -info $HDF5_INFO -uri $uri
 	pushd $SOURCE_ROOT
 	Rename-Item -Path $package_prefix -NewName $HDF5_INFO.folder
