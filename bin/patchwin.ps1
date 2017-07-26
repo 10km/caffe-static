@@ -381,7 +381,7 @@ function append_dependencies_install($caffe_root){
 # see also $openblas_install_path/lib/cmake/openblas/OpenBLASConfig.cmake
 IF( OpenBLAS_LIBRARIES_BIN )
 	message(STATUS "install ${OpenBLAS_LIBRARIES_BIN} to bin")
-	install(PROGRAMS ${OpenBLAS_LIBRARIES_BIN} DESTINATION ${CMAKE_INSTALL_BINDIR})
+	install(PROGRAMS ${OpenBLAS_LIBRARIES_BIN} DESTINATION bin)
 endif(OpenBLAS_LIBRARIES_BIN)'
     $content=Get-Content $dependencies_cmake
     if(!($content -match '^\s*#\s*---\s*\[\s*install\s+Dependencies.*$')){
