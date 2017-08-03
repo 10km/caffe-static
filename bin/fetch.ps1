@@ -222,7 +222,9 @@ function fetch_7z(){
         # 将解开的 .msi 包中 Files/7-Zip 文件夹移到根目录，然后删除所有无用的文件
         $delitem=Get-ChildItem $target_folder
         Get-ChildItem ([io.path]::Combine($target_folder,'Files','7-Zip')) | Move-Item -Destination $target_folder
+        exit_on_error
         $delitem |Remove-Item -Recurse 
+        exit_on_error
         $UNPACK_TOOL = get_unpack_cmdexe
     }
 }
@@ -412,9 +414,7 @@ echo $names| foreach {
 mkdir_if_not_exist $PACKAGE_ROOT
 mkdir_if_not_exist $SOURCE_ROOT
 mkdir_if_not_exist $TOOLS_ROOT
-if($UNPACK_TOOL){
-    fetch_7z
-}
+fetch_7z
 Write-Host "解压缩工具(unpack tool):$UNPACK_TOOL" -ForegroundColor Yellow
 # 顺序下载解压 $names 中指定的项目
 echo $names| foreach {

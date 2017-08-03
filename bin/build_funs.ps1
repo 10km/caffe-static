@@ -192,13 +192,18 @@ function find_associated_exe([string]$suffix){
 }
 # 为后缀为$suffix压缩包寻找解压缩工具
 # 如果定义了 $UNPACK_TOOL 则优先使用它做为解压缩工具
-# 否则 调用 assoc,ftype 来查找对应的解压缩工具，如果找不到就报错退出
+# 否则 调用 get_unpack_cmdexe 来查找对应的解压缩工具，如果找不到就报错退出
 function find_unpack_function([string]$suffix){
     if($UNPACK_TOOL){
-        exit_if_not_exist $UNPACK_TOOL -type Leaf -msg "没有找到 `$UNPACK_TOOL 指定的命令行解压缩工具 $UNPACK_TOOL"
+        exit_if_not_exist $UNPACK_TOOL -type Leaf -msg "(没有找到 `$UNPACK_TOOL 指定的命令行解压缩工具)not found unpack tool $UNPACK_TOOL"
         $exe=$UNPACK_TOOL
     }else{
-        $exe=find_associated_exe $suffix
+        $exe=get_unpack_cmdexe
+        if( !$exe ){
+            Write-Host "(没有找到命令行解压缩工具)not found unpack tool,install 7z by running ./fetch.ps1 7z " -ForegroundColor Yellow
+            call_stack
+            exit -1
+        }
     }
     $fun="unpack_"+ ((Get-Item $exe).BaseName.toLower() -replace '^.*(7z|haozip).*$','$1')
     check_defined_function $fun
