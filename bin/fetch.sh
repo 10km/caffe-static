@@ -13,10 +13,15 @@ shell_folder=$(cd "$(dirname "$0")";pwd)
 # 如果文件存在且checksum与$2指定的md5相等则返回 1,否则返回0
 # $1 待检查的文件路径
 # $2 md5校验码
+# 如果本地存在指定的文件$1，且$2(md5)为空,则根据$FORCE_DOWNLOAD_IF_EXIST决定是否下载
 need_download(){
 	if [ $# -eq 2 ]
 	then
 		if [ -f $1 ]; then
+			if [ -z "$2" ] 
+			then
+				return [ $FORCE_DOWNLOAD_IF_EXIST -eq 1]
+			fi
 			echo "File already exists. Checking md5..."
 			local os=`uname -s`
 			if [ $(which md5sum) ]
@@ -46,7 +51,6 @@ need_download(){
 }
 # 从github上下载源码
 # 如果本地不存在指定的zip包，或$md5为空或$md5校验码不匹配则从github下载
-# 如果本地存在指定的zip包，且$md5为空,则根据$FORCE_DOWNLOAD_IF_EXIST决定是否跳过下载直接解压
 # $1 项目名称
 fetch_from_github(){
 	if [ $# -eq 1 ]
@@ -58,15 +62,12 @@ fetch_from_github(){
 			exit -1
 		fi
 		local package="$folder.zip"
-		if [ -z "$md5" ] || need_download $PACKAGE_ROOT/$package $md5
+		if need_download $PACKAGE_ROOT/$package "$md5"
 		then
-			if [ -n "$md5" ] || [ $FORCE_DOWNLOAD_IF_EXIST -eq 1 ] 
-			then
-				echo "${FUNCNAME[0]}:(下载源码)downloading $prefix $version source"
-				remove_if_exist $PACKAGE_ROOT/$package
-				wget --no-check-certificate https://github.com/$owner/$prefix/archive/$package_prefix$version.zip -O $PACKAGE_ROOT/$package
-				exit_on_error
-			fi
+			echo "${FUNCNAME[0]}:(下载源码)downloading $prefix $version source"
+			remove_if_exist $PACKAGE_ROOT/$package
+			wget --no-check-certificate https://github.com/$owner/$prefix/archive/$package_prefix$version.zip -O $PACKAGE_ROOT/$package
+			exit_on_error
 		fi
 		remove_if_exist $SOURCE_ROOT/$folder
 		echo "(解压缩文件)extracting file from $PACKAGE_ROOT/$package"
@@ -111,7 +112,7 @@ fetch_hdf5(){
 	then
 		remove_if_exist $PACKAGE_ROOT/$package
 		echo "${FUNCNAME[0]}:(下载源码)downloading $prefix $version source"
-		wget --no-check-certificate https://support.hdfgroup.org/ftp/HDF5/releases/$folder/src/$package_prefix.tar.gz -O $PACKAGE_ROOT/$package
+		wget --no-check-certificate https://support.hdfgroup.org/ftp/HDF5/releases/${folder%.*}/$folder/src/$package_prefix.tar.gz -O $PACKAGE_ROOT/$package
 		exit_on_error
 	fi
 	remove_if_exist $SOURCE_ROOT/$folder
@@ -193,7 +194,7 @@ fetch_ssd_clone(){
 fetch_ssd_zip(){
 	eval $(declare_project_local_vars SSD)
 	local package="$folder.zip"
-	if [ $FORCE_DOWNLOAD_IF_EXIST -eq 1 ] || [ ! -f $PACKAGE_ROOT/$package ]
+	if need_download $PACKAGE_ROOT/$package "$md5"
 	then
 		remove_if_exist $PACKAGE_ROOT/$package
 		echo "${FUNCNAME[0]}:(下载源码)downloading $prefix $version source"
