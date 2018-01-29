@@ -166,7 +166,7 @@ Windows默认是不允许执行PowserShell脚本执行，所以第一次执行 P
     
 **注意**
 
-所有powershell脚本(*.ps1)为Unix换行符(`\n`),所以在Windows下执行时务必转换为windows格式换行符(`\r\n`),否则脚本执行会报错。
+在Windows下执行Unix换行符(`\n`)的powershell脚本(*.ps1)时会报错,所以在Windows下执行powershell脚本时务必保证脚本的换行符为windows格式换行符(`\r\n`)。
 
 # 3.开始
 
