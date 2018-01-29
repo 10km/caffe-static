@@ -109,7 +109,7 @@ windows下编译的caffe 依赖库(MSVC编译)
 
 # 2.运行环境要求
 
-##linux 
+## linux 
 
 必须安装gcc编译器(g++ &＆ gcc)
 
@@ -117,7 +117,7 @@ windows下编译的caffe 依赖库(MSVC编译)
 
 可以通过 BUILD_COMPILER_PATH 指定编译器位置(参见bin/build_vars中 BUILD_COMPILER_PATH 的定义 )
 
-##windows 
+## windows 
 
 Windows下需要 PowerShell 执行脚本，需要 PowerShell 4.0或5.0 支持(目前在PowerShell 6.0版本上还有兼容性问题，暂不支持)。
 
@@ -126,7 +126,7 @@ Win7 内置 PowerShell 2.0，需要升级到4.0。关于 PowerShell 4.0 下载�
 
 Win10内置 PowerShell 5.0，不需要升级
 
-##如何查看 PowerShell 版本号?
+## 如何查看 PowerShell 版本号?
 
 在PowerShell (1.0以上版本)中输入 如下命令
 
@@ -144,7 +144,7 @@ Win10内置 PowerShell 5.0，不需要升级
 	PSCompatibleVersions           {1.0, 2.0, 3.0, 4.0}                                                                                                                                                                                           
 	PSRemotingProtocolVersion      2.2              
 
-##第一次使用powershell
+## 第一次使用powershell
 
 Windows默认是不允许执行PowserShell脚本执行，所以第一次执行 PowerShell时需要对Windows策略进行修改：
 
@@ -154,7 +154,7 @@ Windows默认是不允许执行PowserShell脚本执行，所以第一次执行 P
 
 [《组策略中哪儿可以设置powershell 启用脚本执行权限》](https://zhidao.baidu.com/question/1885894711261585828.html)
 
-##编译器
+## 编译器
 
 支持Visual Studio 2013,Visual Studio 2015，MinGW.
 
@@ -164,16 +164,20 @@ Windows默认是不允许执行PowserShell脚本执行，所以第一次执行 P
 
 如果你的Windows系统没有安装任何编译器，脚本会用自带的MinGW编译进行编译
     
+**注意**
+
+所有powershell脚本(*.ps1)为Unix换行符(`\n`),所以在Windows下执行时务必转换为windows格式换行符(`\r\n`),否则脚本执行会报错。
+
 # 3.开始
 
-##linux
+## linux
 执行 bin/build.sh 即可完成下载、编译所有代码。
 
 第一次执行因为要下载caffe及所有依赖库的源码，所以会耗时较长，请耐心等待。
 
 如果要编译自己的caffe项目代码，请参照 build_ssd.sh 脚本修改
 
-##windows
+## windows
 
 在 PowerShell 中执行fetch.ps1 下载解压所有软件包和工具包,第一次执行时要下载几百MB数据，可能耗时较长 
 
@@ -183,7 +187,7 @@ Windows默认是不允许执行PowserShell脚本执行，所以第一次执行 P
 
 	D:\caffe-static\bin> ./build.ps1
 
-##编译自己的caffe windows代码
+## 编译自己的caffe windows代码
 
 本项目windows脚本已经内置了下面两套 caffe 源码的静态编译：
 
