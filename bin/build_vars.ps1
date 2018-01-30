@@ -163,8 +163,8 @@ $SNAPPY_1_1_4_INFO= create_project_info @{
 }
 $OPENBLAS_INFO= create_project_info @{
 	prefix="OpenBLAS"
-	version="0.2.18"
-	md5="4ca49eb1c45b3ca82a0034ed3cc2cef1"
+	version="0.2.20"
+	md5="e0d47385423944cbd14bcb9e58930ff9"
 	owner="xianyi"
 	package_prefix="v"
 }
