@@ -20,7 +20,8 @@ need_download(){
 		if [ -f $1 ]; then
 			if [ -z "$2" ] 
 			then
-				return [ $FORCE_DOWNLOAD_IF_EXIST -eq 1]
+				test $FORCE_DOWNLOAD_IF_EXIST -eq 1 
+				return $?
 			fi
 			echo "File already exists. Checking md5..."
 			local os=`uname -s`
