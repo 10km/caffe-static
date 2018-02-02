@@ -857,7 +857,11 @@ function build_caffe_windows([PSObject]$project){
     if($project.prefix -ne 'caffe'){
         throw "not project caffe based $project"
     }
+    # GPU编译的版本在安装路径名加_cuda后缀
     $install_path=$project.install_path()
+    if($caffe_gpu){
+        $install_path += '_cuda'
+    }
     # 调用 check_component 函数依次检查编译 caffe 所需的依赖库是否齐全
     # 保存错误信息的数组,调用check_component时如果有错，错误保存到数组
     [string[]]$error_message=@()
