@@ -704,7 +704,7 @@ function build_opencv(){
             -DWITH_VFW=off
             -DWITH_VTK=off
             -DWITH_XIMEA=off
-            -DWITH_WIN32UI=off 
+            -DWITH_WIN32UI=on 
             2>&1" 
     cmd /c $cmd
     exit_on_error
