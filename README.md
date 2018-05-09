@@ -50,6 +50,8 @@ windows下编译的caffe 依赖库(MSVC编译)
 
 
 >	--没有提供python接口
+>	
+>	--linux下目前只能编译CPU_ONLY版本,windows下支持GPU版本编译，但需要用户确保CUDA正确安装，详见-help帮助信息
 
 
 # 1. 目录结构说明
