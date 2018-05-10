@@ -32,6 +32,8 @@ param(
 [switch]$caffe_use_dynamic_openblas,
 [switch]$debug,
 [switch]$build_reserved,
+[switch]$boost_build_all,
+[switch]$boost_link_shared,
 [switch]$help
 )
 
@@ -81,6 +83,10 @@ $BUILD_INFO=New-Object PSObject -Property @{
     build_type=$(if($debug){'debug'}else{'release'})
     # 项目编译成功后是否清除 build文件夹
     remove_build= ! $build_reserved
+    # 是否编译所有boost库,默认只编译caffe需要的库
+    boost_build_all= $boost_build_all
+    # 是否编译boost动态库,默认编译静态库
+    boost_link_shared= $boost_link_shared
     # 环境变量快照,由成员 save_env_snapshoot 保存
     # 为保证每个 build_xxxx 函数执行时，环境变量互不干扰，
     # 在开始编译前调用 restore_env_snapshoot 将此变量中保存的所有环境变量恢复到 save_env_snapshoot 调用时的状态
@@ -529,7 +535,21 @@ function build_boost(){
     }else{
         $runtime_link='runtime-link=static'
     }
-    
+    if($BUILD_INFO.boost_build_all){
+        $with_libraries=""
+    }else{
+        $with_libraries="        
+        --with-date_time
+        --with-system
+        --with-thread
+        --with-filesystem
+        --with-regex "
+    }
+    if($BUILD_INFO.boost_link_shared){
+        $boost_link="link=shared"
+    }else{
+        $boost_link="link=static"
+    }
     Write-Host "runing bootstrap..." -ForegroundColor Yellow
     cmd /c "bootstrap"
     exit_on_error
@@ -552,13 +572,9 @@ function build_boost(){
     # -d+3 log信息显示级别
     Write-Host "boost compiling..." -ForegroundColor Yellow
     args_not_null_empty_undefined MAKE_JOBS
-    $cmd=combine_multi_line "bjam --prefix=$install_path -a -q -d+3 -j$MAKE_JOBS --debug-configuration   
-        --with-date_time
-        --with-system
-        --with-thread
-        --with-filesystem
-        --with-regex 
-        link=static 
+    $cmd=combine_multi_line "bjam --prefix=$install_path -a -q -d+3 -j$MAKE_JOBS --debug-configuration
+        $with_libraries   
+        $boost_link 
         variant=$($BUILD_INFO.build_type) $runtime_link $toolset $address_model $cxxflags $cflags
         install 2>&1"
     cmd /c $cmd 
@@ -1046,6 +1062,8 @@ function print_help(){
                     指定编译 caffe 时使用 OpenBLAS 动态库,MingGW编译时有效,默认MinGW编译时使用 OpenBLAS 静态库
     -debug          编译Debug版本,默认Release
     -build_reserved 编译安装后保存编译生成的工程文件及中间文件
+    -boost_build_all 编译所有boost库,默认只编译caffe需要的库
+    -boost_link_shared 编译boost动态库,默认编译静态库
     -h,-help        显示帮助信息
 作者: guyadong@gdface.net
 "
@@ -1101,6 +1119,8 @@ options:
                     by default OpenBLAS static library used when MinGW
     -debug          Debug building, default is Release
     -build_reserved reserve thd build folder while project building finished
+    -boost_build_all build all of boost libraries, default: caffe required only
+    -boost_link_shared build boost shared libraries, default: static
 	-h,-help        print the message
 author: guyadong@gdface.net
 "
