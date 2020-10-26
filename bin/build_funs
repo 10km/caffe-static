@@ -105,6 +105,8 @@ mkdir_if_not_exist(){
 install_suffix(){
 	if [ $# -eq 1 ]
 	then
+		[ -e "$MAKE_CXX_COMPILER" ] && echo $1_$($MAKE_CXX_COMPILER -dumpmachine) && return 0
+		[ -e "$MAKE_C_COMPILER" ] && $1_$($MAKE_C_COMPILER -dumpmachine) && return 0
 		# -l 字母转小写
 		typeset -l os processor
 		os=`uname -s`
