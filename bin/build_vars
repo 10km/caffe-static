@@ -3,34 +3,29 @@
 # 如果指定的cxx编译器版本满足版本号要求，则定义 MAKE_CXX_COMPILER ，MAKE_C_COMPILER 变量
 # $1 编译器路径 
 # $2 版本号限制
+# 可以通过　CXX_COMPILER　指定　c++ 编译器名,未指定则使用默认名 g++
+# 可以通过　C_COMPILER　指定　c 编译器名,未指定则使用默认名 gcc
 check_cxx_compiler(){
+	local cxx_compiler=g++
+	local c_compiler=gcc
+	[ -n "$CXX_COMPILER" ] && cxx_compiler=$CXX_COMPILER
+	[ -n "$C_COMPILER" ] && c_compiler=$C_COMPILER
 	if [ $# -ge 1 ]
 	then
-		# 当没有指定版本号时，寻找系统默认安装的编译器
-		if [ -z "$2" ] ; then
-			which g++ 
-			if [ $? -ne 0 ] 
-			then 
-				echo "not found (g++)gcc compiler, please install it."
-				echo "没有找到gcc编译器，请先安装gcc编译器"
-				exit -1;
-			fi
-			local c=$(which g++)
-			if [ -z "$c" ] ; then
-				echo "没有找到g++(gcc)编译器，请先安装gcc编译器"
-				exit -1
-			fi
-			local f=$( dirname "$c" )
-			MAKE_CXX_COMPILER="$f/g++"
-			MAKE_C_COMPILER="$f/gcc"
-			return 0
-		elif [ -d "$1" ] && [ -x "$1/g++" ] && [ ! $($1/g++ -dumpversion) \< "$2" ]
+		if [ -z "$1" ]
 		then
-			MAKE_CXX_COMPILER="$1/g++"
-			MAKE_C_COMPILER="$1/gcc"
-			return 0
+			[ ! which $cxx_compiler ] && return 1;
+			local c=$(which $cxx_compiler)
+			local f=$( dirname "$c" )
+			MAKE_CXX_COMPILER="$c"
+			MAKE_C_COMPILER="$f/$c_compiler"	
+		else
+			MAKE_CXX_COMPILER="$1/$cxx_compiler"
+			MAKE_C_COMPILER="$1/$c_compiler"		
+			[ ! -x "$MAKE_CXX_COMPILER" ] && return 1;
 		fi
-		return 1
+		[ -n "$2" ] && [ $($MAKE_CXX_COMPILER -dumpversion) \< "$2" ] && return 1
+		return 0
 	else 
 		# 参数错误，退出
 		echo invalid argument:
@@ -52,6 +47,7 @@ check_cxx_compiler(){
 echo 编译器位置：
 echo MAKE_CXX_COMPILER:$MAKE_CXX_COMPILER
 echo MAKE_C_COMPILER:$MAKE_C_COMPILER
+
 # cmake 参数定义
 declare -r CMAKE_VARS_DEFINE="-DCMAKE_CXX_COMPILER:FILEPATH=$MAKE_CXX_COMPILER -DCMAKE_C_COMPILER:FILEPATH=$MAKE_C_COMPILER -DCMAKE_BUILD_TYPE:STRING=RELEASE"
 # 脚本所在路径
@@ -195,8 +191,8 @@ BZIP2_INSTALL_PATH=$INSTALL_PREFIX_ROOT/$(install_suffix $BZIP2_PREFIX)
 define_project_folder $BZIP2_PREFIX
 
 BOOST_PREFIX="boost"
-BOOST_VERSION="1.58.0"
-BOOST_MD5="5a5d5614d9a07672e1ab2a250b5defc5"
+BOOST_VERSION="1.62.0"
+BOOST_MD5="6f4571e7c5a66ccc3323da6c24be8f05"
 BOOST_INSTALL_PATH=$INSTALL_PREFIX_ROOT/$(install_suffix $BOOST_PREFIX)
 define_project_folder $BOOST_PREFIX
 
