@@ -24,7 +24,19 @@ cat $BOOST_BUILD_PATH/user-config.jam
 # --without-libraries指定不编译的库
 #./bootstrap.sh --without-libraries=python,mpi,graph,graph_parallel,wave
 # --with-libraries指定编译的库
-./bootstrap.sh --with-libraries=system,thread,filesystem,regex
+
+# 默认编译的库
+with_librarys=--with-libraries=system,thread,filesystem,regex
+# 默认排除的库
+without_librarys=
+
+[ -n "$BOOST_WITHOUT_LIBRARYS" ] && without_librarys=--without-libraries=$BOOST_WITHOUT_LIBRARYS && with_librarys=
+
+[ -n "$BOOST_WITH_LIBRARYS" ] && with_librarys=--with-libraries=$BOOST_WITH_LIBRARYS && without_librarys=
+
+[ "$boost_build_all" = "ON" ] && with_librarys=　&& without_librarys=
+
+./bootstrap.sh $with_librarys $without_librarys
 exit_on_error
 ./b2 --clean
 remove_if_exist $install_path
@@ -32,6 +44,7 @@ remove_if_exist $install_path
 # --debug-configuration 编译时显示加载的配置信息
 # -q参数指示出错就停止编译
 # link=static 只编译静态库
-./b2 --prefix=$install_path -q --debug-configuration link=static install
+
+CXX_FLAGS=-fPIC && ./b2 --prefix=$install_path -q --debug-configuration link=static install
 exit_on_error
 popd
