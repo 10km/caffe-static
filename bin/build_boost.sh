@@ -6,6 +6,11 @@ shell_folder=$(cd "$(dirname "$0")";pwd)
 . $shell_folder/build_funs
 . $shell_folder/build_vars
 
+rm $SOURCE_ROOT/$BOOST_FOLDER/b2 >/dev/null 2>&1
+rm $SOURCE_ROOT/$BOOST_FOLDER/bjam >/dev/null 2>&1
+rm $SOURCE_ROOT/$BOOST_FOLDER/project-config.jam* >/dev/null 2>&1
+rm -fr $SOURCE_ROOT/$BOOST_FOLDER/bin.v2 >/dev/null 2>&1
+
 install_path=$BOOST_INSTALL_PATH
 echo install_path:$install_path
 pushd $SOURCE_ROOT/$BOOST_FOLDER
@@ -17,6 +22,7 @@ pushd $SOURCE_ROOT/$BOOST_FOLDER
 export BOOST_BUILD_PATH=$(pwd)
 echo "using gcc : : $MAKE_CXX_COMPILER ;" >$BOOST_BUILD_PATH/user-config.jam
 cat $BOOST_BUILD_PATH/user-config.jam
+
 # 所有库列表
 # atomic chrono container context coroutine date_time exception filesystem 
 # graph graph_parallel iostreams locale log math mpi program_options python 
