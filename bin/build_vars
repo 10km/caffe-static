@@ -7,8 +7,9 @@ check_cxx_compiler(){
 	if [ $# -ge 1 ]
 	then
 		local d=$(dirname $CXX)
-		[ -z "$1" ] && [ -n "$d" ] && $1=$d
-		[ -z "$1" ] && [ -z "$d" ] && $1=$(dirname $(which $CXX))
+		local p
+		[ -z "$1" ] && [ -n "$d" ] && MAKE_CXX_COMPILER=$CXX && MAKE_C_COMPILER="$d/$CC"
+		[ -z "$1" ] && [ -z "$d" ] && $p=$(dirname $(which $CXX)) && MAKE_CXX_COMPILER="$p/$CXX" && MAKE_C_COMPILER="$p/$(basename $CC)"
 		[ -n "$1" ] && MAKE_CXX_COMPILER="$1/$CXX" && MAKE_C_COMPILER="$1/$CC"
 		[ ! -x "$MAKE_CXX_COMPILER" ] && return 1;
 		[ -n "$2" ] && [ $($MAKE_CXX_COMPILER -dumpversion) \< "$2" ] && return 1
